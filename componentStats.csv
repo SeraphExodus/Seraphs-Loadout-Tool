@@ -1,0 +1,13 @@
+Armor,Armor/Hitpoints,Mass,,,,,,,1,-1,,,,,,,A/HP:,Mass:,,,,,,
+Booster,Reactor Energy Drain,Mass,Booster Energy,Booster Recharge Rate,Booster Energy Consumption Rate,Acceleration,Top Booster Speed,,-1,-1,1,1,-1,1,1,,Drain:,Mass:,Energy:,Recharge:,Consumption:,Acceleration:,Top Speed:,
+Capacitor,Reactor Energy Drain,Mass,Capacitor Energy,Recharge Rate,,,,,-1,-1,1,1,,,,,Drain:,Mass:,Energy:,Recharge:,,,,
+Cargo Hold,Mass,,,,,,,,,,,,,,,,Mass:,,,,,,,
+Countermeasure Launcher,Reactor Energy Drain,Mass,,,,,,,,,,,,,,,Drain:,Mass:,,,,,,
+Countermeasure Pack,Ammunition,,,,,,,,,,,,,,,,Ammo:,,,,,,,
+Droid Interface,Reactor Energy Drain,Mass,Droid Command Speed,,,,,,-1,-1,-1,,,,,,Drain:,Mass:,Command Speed:,,,,,
+Engine,Reactor Energy Drain,Mass,Pitch Rate Maximum,Yaw Rate Maximum,Roll Rate Maximum,Engine Top Speed,,,-1,-1,1,1,1,1,,,Drain:,Mass:,Pitch Rate:,Yaw Rate:,Roll Rate:,Top Speed:,,
+Ordnance Launcher,Reactor Energy Drain,Mass,Type,,,,,,,,,,,,,,Drain:,Mass:,Type:,,,,,
+Ordnance Pack,Minimum Damage,Maximum Damage,Ammunition,Type,,,,,,,,,,,,,Min Damage:,Max Damage:,Ammo:,Type:,,,,
+Reactor,Mass,Reactor Generation Rate,,,,,,,-1,-1,,,,,,,Mass:,Generation:,,,,,,
+Shield,Reactor Energy Drain,Mass,Shield Hitpoints,Shield Recharge Rate,,,,,-1,-1,1,1,,,,,Drain:,Mass:,Front HP:,Back HP:,Recharge:,,,
+Weapon,Reactor Energy Drain,Mass,Minimum Damage,Maximum Damage,Vs. Shields,Vs. Armor,Energy/Shot,Refire Rate,-1,-1,1,1,1,1,-1,-1,Drain:,Mass:,Min Damage:,Max Damage:,Vs. Shields:,Vs. Armor:,Energy/Shot:,Refire Rate:
