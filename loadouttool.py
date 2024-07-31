@@ -1,19 +1,26 @@
 import FreeSimpleGUI as sg
-import numpy as np
 import os
 import pyglet
 import sqlite3
 import win32clipboard
-import win32gui
 
+from datetime import datetime, timedelta
 from io import BytesIO
+from numpy import round, ceil
 from PIL import ImageGrab
+from requests import get
+from webbrowser import open as browserOpen
+from win32gui import FindWindow, GetWindowRect
 
 from buildTables import buildTables
 from buildCompList import buildComponentList
 from createLoadout import createLoadout
 from importBackup import importBackupData
 from manageComponents import manageComponents
+
+currentVersion = "2.A.00"
+
+versionURL = "https://gist.github.com/SeraphExodus/8ae0b6980e3780e8782847dbe76b0bf5/raw"
 
 fontList = sg.Text.fonts_installed_list()
 
@@ -142,7 +149,7 @@ dpShotTooltip = """ Damage numbers are given as approximate average damage per s
 ###Debug Util
 
 def pause():
-    doError('Pause')
+    alert('Pause',['Paused'],['Continue'],0)
 
 ###Debug Util
 
@@ -191,7 +198,7 @@ def displayPrecision(stats, decimals, *shift):
         index = 1
 
     for i in range(index, len(stats)):
-        output.append(np.round(tryFloat(stats[i]), decimals[i-index]))
+        output.append(round(tryFloat(stats[i]), decimals[i-index]))
 
     return output
 
@@ -211,104 +218,55 @@ def getThreeColorGradient(per):
         color = '#' + red + 'cc00'
     return color
 
-def doError(errorText):
-    errorLayout = [
-        [sg.Push(), sg.Text(errorText, font=headerFont), sg.Push()],
-        [sg.Push(), sg.Button('Okay', font=buttonFont), sg.Push()]
-    ]
+def alert(headerText, textLines, buttons, timeout, *textSettings):
+    Layout = []
 
-    errorWindow = sg.Window('Error', errorLayout, modal=True, icon=os.path.abspath(os.path.join(os.path.dirname(__file__), 'SLT_Icon.ico')))
-    while True:
-        event, values = errorWindow.read()
-        if event == "Exit" or event == sg.WIN_CLOSED or event == 'Okay':
-            break
+    if len(textLines) > 0:
+        for i in range(0,len(textLines)):
+            try:
+                textFont = textSettings[0][0][i]
+            except:
+                textFont = summaryFont
+            try:
+                textJust = textSettings[0][1][i]
+            except:
+                textJust = 'center'
+            
+            Line = sg.Text(textLines[i],font=textFont, background_color=bgColor)
+            if textJust == 'left':
+                Layout.append([Line,sg.Push(background_color=bgColor)])
+            elif textJust == 'right':
+                Layout.append([sg.Push(background_color=bgColor),Line])
+            else:
+                Layout.append([sg.Push(background_color=bgColor),Line,sg.Push(background_color=bgColor)])
 
-    errorWindow.close()
+    buttonList = [sg.Push(background_color=bgColor),sg.Push(background_color=bgColor)]
+    if len(buttons) > 0:
+        for i in buttons:
+            buttonList.append(sg.Button(i,font=buttonFont, button_color=boxColor))
+            buttonList.append(sg.Push(background_color=bgColor))
+        buttonList.append(sg.Push(background_color=bgColor))
+        Layout.append(buttonList)
 
-def doAlert(alertText):
-    alertLayout = [
-        [sg.Push(), sg.Text(alertText, font=headerFont), sg.Push()],
-        [sg.Push(), sg.Button('Okay', font=buttonFont, bind_return_key=True), sg.Push()]
-    ]
+    alertWindow = sg.Window(headerText,Layout,modal=True,icon=os.path.abspath(os.path.join(os.path.dirname(__file__), 'SLT_Icon.ico')), background_color=bgColor)
 
-    alertWindow = sg.Window('Alert', alertLayout, modal=True, finalize=True, icon=os.path.abspath(os.path.join(os.path.dirname(__file__), 'SLT_Icon.ico')))
-    while True:
-        event, values = alertWindow.read()
-        if event == "Exit" or event == sg.WIN_CLOSED or event == 'Okay':
-            break
-
-    alertWindow.close()
-
-def doImportNotice():
-    Layout = [
-        [sg.Push(), sg.Text("Preparing to import version 1.x loadout and component data.", font=headerFont), sg.Push()],
-        [sg.Text("", font=baseFont, p=fontPadding)],
-        [sg.Text("• In order to import your data, you must use the Google Sheets tool to generate an export backup file from the 'Options' tab.", font=summaryFont, p=fontPadding), sg.Push()],
-        [sg.Text("• Navigate to the export file in your Google Drive, which should be titled something like 'Backup Data (Seraph's Loadout Tool)...'", font=summaryFont, p=fontPadding), sg.Push()],
-        [sg.Text("• Open the file, and go to File -> Download -> Microsoft Excel (.xlsx).", font=summaryFont, p=fontPadding), sg.Push()],
-        [sg.Text("", font=baseFont, p=fontPadding)],
-        [sg.Push(), sg.Text("Please be aware:", font=summaryFont), sg.Push()],
-        [sg.Push(), sg.Text("Due to implementation differences, ordnance and countermeasures will not be imported.", font=summaryFont, p=fontPadding), sg.Push()],
-        [sg.Push(), sg.Text("You must remake these components using this version of the tool and add them back to your loadouts.", font=summaryFont, p=fontPadding), sg.Push()],
-        [sg.Text("", font=baseFont, p=fontPadding)],
-        [sg.Push(), sg.Button('Proceed', font=buttonFont, bind_return_key=True), sg.Button('Cancel', font=buttonFont, bind_return_key=True), sg.Push()]
-    ]
-
-    importNoticeWindow = sg.Window('Alert', Layout, modal=True, finalize=True, icon=os.path.abspath(os.path.join(os.path.dirname(__file__), 'SLT_Icon.ico')))
-    while True:
-        event, values = importNoticeWindow.read()
-        if event == "Proceed":
-            output = True
-            break
-        if event == "Cancel" or event == sg.WIN_CLOSED:
-            output = False
-            break
-
-    importNoticeWindow.close()
-    return output
-
-def showKeyboardShortcuts():
-    Layout = [
-        [sg.Push(), sg.Text("Keyboard Shortcuts", font=headerFont), sg.Push()],
-        [sg.Text("", font=baseFont, p=fontPadding)],
-        [sg.Text("• Ctrl+N - New loadout", font=summaryFont, p=fontPadding), sg.Push()],
-        [sg.Text("• Ctrl+S - Save loadout", font=summaryFont, p=fontPadding), sg.Push()],
-        [sg.Text("• Ctrl+O - Open and manage loadouts", font=summaryFont, p=fontPadding), sg.Push()],
-        [sg.Text("• Ctrl+A - Add and manage components", font=summaryFont, p=fontPadding), sg.Push()],
-        [sg.Text("• Ctrl+X - Clear all components", font=summaryFont, p=fontPadding), sg.Push()],
-        [sg.Text("• Ctrl+C - Copy loadout screencap to clipboard", font=summaryFont, p=fontPadding), sg.Push()],
-        [sg.Text("", font=baseFont, p=fontPadding)],
-        [sg.Push(), sg.Button('Got it!', font=buttonFont, bind_return_key=True),sg.Push()]
-    ]
-
-    shortcutsWindow = sg.Window('Keyboard Shortcuts', Layout, modal=True, finalize=True, icon=os.path.abspath(os.path.join(os.path.dirname(__file__), 'SLT_Icon.ico')))
-    while True:
-        event, values = shortcutsWindow.read()
-        if event == "Got it!" or event == sg.WIN_CLOSED:
-            output = False
-            break
-
-    shortcutsWindow.close()
-
-def doAlertYN(alertText):
-    alertLayout = [
-        [sg.Push(), sg.Text(alertText, font=headerFont, justification='center'), sg.Push()],
-        [sg.Push(), sg.Button('Yes', font=buttonFont), sg.Button('No', font=buttonFont), sg.Push()]
-    ]
-
-    alertWindow = sg.Window('Alert', alertLayout, modal=True, icon=os.path.abspath(os.path.join(os.path.dirname(__file__), 'SLT_Icon.ico')))
+    if timeout > 0:
+        startTime = datetime.now()
+        currTime = startTime
+        while currTime < startTime + timedelta(seconds=timeout):
+            event, values = alertWindow.read(timeout=10)
+            if event in buttons or event == sg.WIN_CLOSED:
+                alertWindow.close()
+                return event
+            currTime = datetime.now()
+        alertWindow.close()
+        return
+    
     while True:
         event, values = alertWindow.read()
-        if event == "Yes":
-            output = "Yes"
-            break
-
-        if event == "Exit" or event == sg.WIN_CLOSED or event == 'No':
-            output = "No"
-            break
-
-    alertWindow.close()
-    return output
+        if event in buttons or event == sg.WIN_CLOSED:
+            alertWindow.close()
+            return event
 
 def updateParts(*arg):
     #If you pass a chassis in, it updates the dynamic slot lists too. Otherwise it just updates the part lists
@@ -471,12 +429,12 @@ def verifyEntries(window):
     refreshPack(window, values[slots[24]], 8, compType8)
 
 def updateMassStrings(chassisMass, window):
-    totalMass = str(np.round(tryFloat(window['reactormass'].get()) + tryFloat(window['enginemass'].get()) + tryFloat(window['boostermass'].get()) + tryFloat(window['shieldmass'].get()) + tryFloat(window['frontarmormass'].get()) + tryFloat(window['reararmormass'].get()) + tryFloat(window['dimass'].get()) + tryFloat(window['chmass'].get()) + tryFloat(window['capacitormass'].get()) + tryFloat(window['slot1stat2'].get()) + tryFloat(window['slot2stat2'].get()) + tryFloat(window['slot3stat2'].get()) + tryFloat(window['slot4stat2'].get()) + tryFloat(window['slot5stat2'].get()) + tryFloat(window['slot6stat2'].get()) + tryFloat(window['slot7stat2'].get()) + tryFloat(window['slot8stat2'].get()),1))
+    totalMass = str(round(tryFloat(window['reactormass'].get()) + tryFloat(window['enginemass'].get()) + tryFloat(window['boostermass'].get()) + tryFloat(window['shieldmass'].get()) + tryFloat(window['frontarmormass'].get()) + tryFloat(window['reararmormass'].get()) + tryFloat(window['dimass'].get()) + tryFloat(window['chmass'].get()) + tryFloat(window['capacitormass'].get()) + tryFloat(window['slot1stat2'].get()) + tryFloat(window['slot2stat2'].get()) + tryFloat(window['slot3stat2'].get()) + tryFloat(window['slot4stat2'].get()) + tryFloat(window['slot5stat2'].get()) + tryFloat(window['slot6stat2'].get()) + tryFloat(window['slot7stat2'].get()) + tryFloat(window['slot8stat2'].get()),1))
     try:
         if float(chassisMass) > 0:
-            percentMass = np.round(tryFloat(totalMass)/tryFloat(chassisMass)*100,2)
-            massString = str(totalMass) + " of " + str(np.round(float(chassisMass),1)) + " (" + str(percentMass) + "%)"
-            leftoverMass = str(np.round(float(chassisMass) - float(totalMass),1))# + " (" + str(np.round(100-percentMass,2)) + "%)"
+            percentMass = round(tryFloat(totalMass)/tryFloat(chassisMass)*100,2)
+            massString = str(totalMass) + " of " + str(round(float(chassisMass),1)) + " (" + str(percentMass) + "%)"
+            leftoverMass = str(round(float(chassisMass) - float(totalMass),1))# + " (" + str(round(100-percentMass,2)) + "%)"
             if percentMass > 100:
                 window['loadoutmass'].update(massString, text_color = "#dd0000")
             else:
@@ -552,7 +510,7 @@ def updateDrainStrings(window):
         woEff = tryFloat(overloads[woLevel+11][1])
 
     poweredComponents = [values['engineselection'], values['shieldselection'], values['capselection'], values['boosterselection'], values['diselection'], values['slot1selection'], values['slot2selection'], values['slot3selection'], values['slot4selection'], values['slot5selection'], values['slot6selection'], values['slot7selection'], values['slot8selection']]
-    overloadedGen = np.round(tryFloat(window['reactorgen'].get()) * roEff, 1)
+    overloadedGen = round(tryFloat(window['reactorgen'].get()) * roEff, 1)
     slotDrains, cmIndex = getTotalSlotDrain(values, woEff)
     drains = [tryFloat(window['enginered'].get()) / eoEff, tryFloat(window['shieldred'].get()), tryFloat(window['capacitorred'].get()) / coEff, tryFloat(window['boosterred'].get()), tryFloat(window['dired'].get())] + slotDrains
     boxKeys = ['enginepowerboxcolor', 'shieldpowerboxcolor', 'cappowerboxcolor', 'boosterpowerboxcolor', 'dipowerboxcolor', 'slot1powerboxcolor', 'slot2powerboxcolor', 'slot3powerboxcolor', 'slot4powerboxcolor', 'slot5powerboxcolor', 'slot6powerboxcolor', 'slot7powerboxcolor', 'slot8powerboxcolor']
@@ -593,13 +551,13 @@ def updateDrainStrings(window):
             window[frameKeys[i]].Widget.config(background=boxColor)
 
 
-    overloadedDrain = np.round(overloadedDrain,1)
+    overloadedDrain = round(overloadedDrain,1)
 
     if not overloadedGen == 0 or not overloadedDrain == 0:
         reactorUtilString = str(overloadedDrain) + " of " + str(overloadedGen)
         if overloadedGen > 0:
-            reactorUtilString+= " (" + str(np.round(tryFloat(overloadedDrain)/tryFloat(overloadedGen) * 100,2)) + "%)"
-        reactorMinGenString = str(np.round(overloadedDrain / roEff, 1))
+            reactorUtilString+= " (" + str(round(tryFloat(overloadedDrain)/tryFloat(overloadedGen) * 100,2)) + "%)"
+        reactorMinGenString = str(round(overloadedDrain / roEff, 1))
         if overloadedDrain > overloadedGen:
             window['totaldrain'].update(reactorUtilString, text_color='#dd0000')
         else:
@@ -842,8 +800,8 @@ def refreshShield(window, component, adjust):
         shield = displayPrecision(shield, [1, 1, 1, 2])
         window['shieldred'].update(shield[1])
         window['shieldmass'].update(shield[2])
-        window['shieldfshp'].update(np.round(tryFloat(shield[3]) * adjustFrontRatio,1))
-        window['shieldbshp'].update(np.round(tryFloat(shield[3]) * (2 - adjustFrontRatio),1))
+        window['shieldfshp'].update(round(tryFloat(shield[3]) * adjustFrontRatio,1))
+        window['shieldbshp'].update(round(tryFloat(shield[3]) * (2 - adjustFrontRatio),1))
         window['shieldrr'].update("{:.2f}".format(shield[4]))
     else:
         window['shieldred'].update("")
@@ -993,7 +951,7 @@ def refreshSlot(window, component, slotID):
             window[slot + 'stat5'].update("")
             window[slot + 'stat6'].update("")
             window[slot + 'stat7'].update("")
-            window[slot + 'stat8'].update(np.round(tryFloat(multiplier),1))
+            window[slot + 'stat8'].update(round(tryFloat(multiplier),1))
 
         elif compType == "Countermeasure":
             window[slot + 'stat1'].update(stats[0])
@@ -1075,8 +1033,8 @@ def refreshPack(window, component, slotID, *arg):
             stats[4] = int(stats[2])
             stats[2] = "{:.3f}".format(tryFloat(ordnanceStats[2]))
             stats[3] = "{:.3f}".format(tryFloat(ordnanceStats[3]))
-            window[slot + 'stat3'].update(np.round(tryFloat(stats[0],1)))
-            window[slot + 'stat4'].update(np.round(tryFloat(stats[1],1)))
+            window[slot + 'stat3'].update(round(tryFloat(stats[0],1)))
+            window[slot + 'stat4'].update(round(tryFloat(stats[1],1)))
             window[slot + 'stat5'].update(stats[2])
             window[slot + 'stat6'].update(stats[3])
             window[slot + 'stat7'].update(stats[4])
@@ -1128,7 +1086,7 @@ def updateOverloadMults(window):
         window['engineoverloaddesc3'].update("")
         window['engineoverloaddesc4'].update("")
     else:
-        eoEff = tryInt(np.round(1/tryFloat(overloads[eoLevel+3][1]),2))
+        eoEff = tryInt(round(1/tryFloat(overloads[eoLevel+3][1]),2))
         eoGenEff = tryInt(tryFloat(overloads[eoLevel+3][2]))
         window['engineoverloaddesc1'].update("TS/PYR:")
         window['engineoverloaddesc2'].update(str(eoGenEff) + 'x')
@@ -1143,7 +1101,7 @@ def updateOverloadMults(window):
         window['capoverloaddesc3'].update("")
         window['capoverloaddesc4'].update("")
     else:    
-        coEff = tryInt(np.round(1/tryFloat(overloads[coLevel+7][1]),2))
+        coEff = tryInt(round(1/tryFloat(overloads[coLevel+7][1]),2))
         coGenEff = tryInt(tryFloat(overloads[coLevel+7][2]))
         window['capoverloaddesc1'].update("CE/RR:")
         window['capoverloaddesc2'].update(str(coGenEff) + 'x')
@@ -1159,7 +1117,7 @@ def updateOverloadMults(window):
         window['weaponoverloaddesc4'].update("")
         
     else:
-        woEff = tryInt(np.round(1/tryFloat(overloads[woLevel+11][1]),2))
+        woEff = tryInt(round(1/tryFloat(overloads[woLevel+11][1]),2))
         woGenEff = tryInt(tryFloat(overloads[woLevel+11][2]))
         window['weaponoverloaddesc1'].update("Damage:")
         window['weaponoverloaddesc2'].update(str(woGenEff) + 'x')
@@ -1313,22 +1271,22 @@ def doWeaponCalculations(window):
         fullCapDamage = 0
         for i in damageDealtPerWeapon:
             fullCapDamage += i
-        fullCapDamage = np.round(fullCapDamage,1)
+        fullCapDamage = round(fullCapDamage,1)
 
         try:
-            capRechargeTime = np.round(np.ceil(capEnergy/(1.5*capRecharge))*1.5,1)
+            capRechargeTime = round(ceil(capEnergy/(1.5*capRecharge))*1.5,1)
         except:
             capRechargeTime = ''
 
         if not tryFloat(fireTime) == 0:
-            firingRatio = str(np.round(fireTime/(fireTime + capRechargeTime) * 100,1)) + '%'
+            firingRatio = str(round(fireTime/(fireTime + capRechargeTime) * 100,1)) + '%'
         else:
             firingRatio = ''
 
         if fireTime == 0:
             fireTime = ">300s"
         else:
-            fireTime = str(np.round(fireTime,1)) + 's'
+            fireTime = str(round(fireTime,1)) + 's'
 
         capRechargeTime = str(capRechargeTime) + 's'
 
@@ -1360,8 +1318,8 @@ def doWeaponCalculations(window):
         window['pveheader'].update('PvE')
         window['pvpheader'].update('PvP')
         window['pilotguntext'].update('Pilot Gun Total:')
-        pilotPvE = np.round(pilotWeaponDPShotPvE,1)
-        pilotPvP = np.round(pilotWeaponDPShotPvP,1)
+        pilotPvE = round(pilotWeaponDPShotPvE,1)
+        pilotPvP = round(pilotWeaponDPShotPvP,1)
         window['pilotweapondamagepve'].update(pilotPvE)
         window['pilotweapondamagepvp'].update(pilotPvP)
 
@@ -1371,8 +1329,8 @@ def doWeaponCalculations(window):
             else:
                 loadedWeapon = loadedCombined[i-1] + ':'
             window['slot' + str(i) + 'damagetext'].update(loadedWeapon)
-            pveDamage = np.round(tryFloat(dpShotCombinedPvE[i-1]),1)
-            pvpDamage = np.round(tryFloat(dpShotCombinedPvP[i-1]),1)
+            pveDamage = round(tryFloat(dpShotCombinedPvE[i-1]),1)
+            pvpDamage = round(tryFloat(dpShotCombinedPvP[i-1]),1)
             if pveDamage == 0:
                 window['slot' + str(i) + 'damagepve'].update('')
                 window['slot' + str(i) + 'damagepvp'].update('')
@@ -1465,9 +1423,9 @@ def doPropulsionCalculations(window):
         boosterAccel = tryFloat(booster[6]) + accel
         boosterTS = tryFloat(booster[7])
 
-        boosterUptime = np.ceil(boosterEnergy / (boosterCons * 1.5)) * 1.5
-        boosterRechargeTime = np.ceil(boosterEnergy / (boosterRecharge * 1.5)) * 1.5
-        boosterUptimePercentage = np.round(boosterUptime/(boosterUptime + boosterRechargeTime) * 100,1)
+        boosterUptime = ceil(boosterEnergy / (boosterCons * 1.5)) * 1.5
+        boosterRechargeTime = ceil(boosterEnergy / (boosterRecharge * 1.5)) * 1.5
+        boosterUptimePercentage = round(boosterUptime/(boosterUptime + boosterRechargeTime) * 100,1)
         window['boosteruptime'].update(str(boosterUptimePercentage) + '%')
 
     if not engine == "None" and not booster == "None":
@@ -1476,7 +1434,7 @@ def doPropulsionCalculations(window):
         decelTime = (boosterTS * speedMod) / decel
         accelLoss = accelTime * boosterTS * speedMod / 2
         decelGain = decelTime * boosterTS * speedMod / 2
-        boostedDist = np.round(boostedTS/10 * boosterUptime - accelLoss + decelGain,0)
+        boostedDist = round(boostedTS/10 * boosterUptime - accelLoss + decelGain,0)
 
         if not speedModFoils == 0:
             boostedTSFoils = (engineTS * eoGenEff + boosterTS) * speedModFoils * 10
@@ -1484,7 +1442,7 @@ def doPropulsionCalculations(window):
             decelTime = (boosterTS * speedModFoils) / decel
             accelLoss = accelTime * boosterTS * speedModFoils / 2
             decelGain = decelTime * boosterTS * speedModFoils / 2
-            boostedDistFoils = np.round(boostedTSFoils/10 * boosterUptime - accelLoss + decelGain)
+            boostedDistFoils = round(boostedTSFoils/10 * boosterUptime - accelLoss + decelGain)
             window['boostedtopspeed'].update(str(int(boostedTS)) + ' (' + str(int(boostedTSFoils)) + ')')
             window['boostdistance'].update(str(int(boostedDist)) + 'm (' + str(int(boostedDistFoils)) + 'm)')
         else:
@@ -1696,7 +1654,7 @@ def loadLoadout(window):
             except:
                 loadout = ''
             if loadout == '':
-                doError("Please select a loadout.")
+                alert('Error',['Please select a loadout.'],['Okay'],0)
                 loadWindow.TKroot.grab_set()
                 pass
             else:
@@ -1774,11 +1732,11 @@ def loadLoadout(window):
             except:
                 loadout = ''
             if loadout == '':
-                doError("Please select a loadout.")
+                alert('Error',['Please select a loadout.'],['Okay'],0)
                 loadWindow.TKroot.grab_set()
             else:
                 currentLoadout = window['loadoutname'].get()
-                result = doAlertYN('You are attempting to delete the loadout named "' + values['loadoutname'][0] + '".\nAre you sure? This action cannot be undone.')
+                result = alert('Alert',['You are attempting to delete the loadout named "' + values['loadoutname'][0] + '."','Are you sure? This action cannot be undone.'],['Yes', 'Cancel'],0)
                 loadWindow.TKroot.grab_set()
                 if result == "Yes":
                     cur2.execute("DELETE FROM loadout WHERE name = ?", [values['loadoutname'][0]])
@@ -1844,7 +1802,7 @@ def saveLoadout(window):
         ]
     
     cur2.execute("INSERT OR REPLACE INTO loadout VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", newLoadout)
-    doAlert("Save Successful!")
+    alert('',['Save Successful!'],[],1.5)
     compdb.commit()
     compdb.close()
 
@@ -2002,12 +1960,12 @@ def updateProfile(window):
         if i < optThrottle:
             percentToOptimal = i / optThrottle
             per = ((1 - minThrottle) * percentToOptimal + minThrottle)
-            per = int(np.round(per,1) * 100)
+            per = int(round(per,1) * 100)
             percents.append(per)
         else:
             percentFromOptimal = (i - optThrottle)/(1 - optThrottle)
             per = ((maxThrottle - 1) * percentFromOptimal + 1)
-            per = int(np.round(per,1) * 100)
+            per = int(round(per,1) * 100)
             percents.append(per)
 
     for i in range(0, 11):
@@ -2048,15 +2006,15 @@ def main():
     menu_def = [
         ['&Loadout', ['&New Loadout', openLoadoutString, '!&Save Loadout', 'E&xit']],
         ['&Components', ['Add and &Manage Components', '!&Clear All Components']],
-        ['&Tools', ['&Import v1.x Data']],
-        ['&Help', ['&Keyboard Shortcuts']]
+        ['&Tools', ['&Import v1.x Data', '&Check for Updates']],
+        ['&Help', ['&Keyboard Shortcuts', 'Test']]
     ]
 
     menu_def_save_enabled = [
         ['Loadout', ['&New Loadout', '&Open Loadout', '&Save Loadout', 'E&xit']],
         ['Components', ['Add and &Manage Components', '&Clear All Components']],
-        ['&Tools', ['&Import v1.x Data']],
-        ['Help', ['&Keyboard Shortcuts']]
+        ['&Tools', ['&Import v1.x Data', '&Check for Updates']],
+        ['Help', ['&Keyboard Shortcuts', 'Test']]
     ]
 
     reactorText = [
@@ -2867,6 +2825,22 @@ def main():
         chassisMass = newChassisMass
         updateProfile(window)
 
+    try:
+        gist = get(versionURL).text.split('\n\n')
+        latestVersion = gist[0]
+        latestURL = gist[1]
+    except:
+        latestVersion = 0
+        latestURL = ''
+
+    if not latestVersion == 0:
+        if latestVersion != currentVersion:
+            result = alert("Alert",['Your version of the Loadout Tool appears to be out of date.', 'Click below to get the most recent version.',""],['Get Newest Version','Continue Anyway'],0)
+            if result == 'Get Newest Version':
+                browserOpen(latestURL)
+                window.close()
+                return
+
     while True:
         event, values = window.read()
         if event == 'New Loadout':
@@ -2927,20 +2901,49 @@ def main():
                 doPropulsionCalculations(window)
 
         if event == 'Import v1.x Data':
-            confirm = doImportNotice()
-            if confirm:
+            confirm = alert('Notice', [
+                'Preparing to import version 1.x loadout and component data.',
+                '',
+                "• In order to import your data, you must use the Google Sheets tool to generate an export backup file from the 'Options' Tab",
+                "• Navigate to the export file in your Google Drive, which should be titled something like 'Backup Data (Seraph's Loadout Tool)...'",
+                "• Open the file, and go to File -> Download -> Microsoft Excel (.xlsx).",
+                '',
+                'Please be aware:',
+                'Due to implementation differences, ordnance and countermeasures will not be imported.',
+                'You must remake these components using this version of the tool and add them back to your loadouts.',
+                ''], ['Proceed','Cancel'],0,[[headerFont] + [summaryFont] * 9, ['center','left','left','left','left','left','center','center','center','center']])
+            if confirm == "Proceed":
                 verify = importBackupData()
                 if verify:
                     window['menu'].update(menu_def_save_enabled)
 
+        if event == 'Check for Updates':
+            try:
+                gist = get(versionURL).text.split('\n\n')
+                latestVersion = gist[0]
+                latestURL = gist[1]
+            except:
+                alert("Alert",["Unable to reach the server. Check your internet connection and try again."],['Okay'],0)
+                latestVersion = 0
+                latestURL = ''
+            if latestVersion != 0:
+                if currentVersion != latestVersion:
+                    result = alert("Alert",['Your version of the Loadout Tool appears to be out of date.', 'Click below to get the most recent version.',""],['Get Newest Version','Continue Anyway'],0)
+                    if result == 'Get Newest Version':
+                        webbrowser.open(latestURL)
+                        window.close()
+                        return
+                else:
+                    alert("Alert",["Your version (" + latestVersion + ") is up to date."],[],5)
+
         if event == 'Clear All Components':
-            result = doAlertYN("Are you sure? This will reset all currently-entered components and FC program settings")
+            result = alert("Alert", ['Are you sure? This will overwrite all currently-inputted components and FC program settings.'], ['Yes','Cancel'], 0)
             if result == "Yes":
                 clearLoadout(window, "parts")
 
         if event == 'Capture Screenshot':
-                appWindow = win32gui.FindWindow(None, "Seraph's Loadout Tool v2.0 Alpha")
-                rect = win32gui.GetWindowRect(appWindow)
+                appWindow = FindWindow(None, "Seraph's Loadout Tool v2.0 Alpha")
+                rect = GetWindowRect(appWindow)
                 rect = (rect[0]+8, rect[1]+51, rect[2]-8, rect[3]-8)
                 grab = ImageGrab.grab(bbox=rect)
                 screencapOutput = BytesIO()
@@ -3082,7 +3085,7 @@ def main():
             refreshShield(window, values['shieldselection'], values['shieldadjustsetting'])
 
         if event == 'Keyboard Shortcuts':
-            showKeyboardShortcuts()
+            alert("Keyboard Shortcuts",['• Ctrl+N - New loadout', '• Ctrl+S - Save loadout', '• Ctrl+O - Open and manage loadouts','• Ctrl+A/Ctrl+M - Add and manage components','• Ctrl+X - Clear components from loadout','• Ctrl+C - Copy loadout screencap to clipboard',''],["Got it!"],0)
 
         if event == "Quit" or event == sg.WINDOW_CLOSE_ATTEMPTED_EVENT:
             doExitSave(window)

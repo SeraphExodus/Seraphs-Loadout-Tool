@@ -1,8 +1,9 @@
-import pandas as pd
-import numpy as np
+import FreeSimpleGUI as sg
 import os
 import sqlite3
-import FreeSimpleGUI as sg
+
+from pandas import read_excel
+
 from buildCompList import buildComponentList
 from buildTables import buildTables
 
@@ -77,7 +78,7 @@ def importBackup(filepath):
     compdb = sqlite3.connect("file:Data\\savedata.db?mode=rw", uri=True)
     cur2 = compdb.cursor()
 
-    data = pd.read_excel(filepath, sheet_name=None, header=None)
+    data = read_excel(filepath, sheet_name=None, header=None)
 
     reactors = data['Reactors'].values.tolist()
     for i in reactors:

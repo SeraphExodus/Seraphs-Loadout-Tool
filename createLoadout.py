@@ -1,8 +1,9 @@
 import FreeSimpleGUI as sg
-import sqlite3
 import os
-from buildTables import buildTables
+import sqlite3
+
 from buildCompList import buildComponentList
+from buildTables import buildTables
 
 headerFont = ("Roboto", 13, "bold")
 baseFont = ("Roboto", 11, "bold")

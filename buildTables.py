@@ -1,7 +1,7 @@
 import os
 import sqlite3
-import csv
-import sys
+
+from csv import reader as csvreader
 
 def isFloat(n):
     try:
@@ -12,7 +12,7 @@ def isFloat(n):
 
 def buildList(path):
     with open(path, newline='') as csvfile:
-        reader = csv.reader(csvfile)
+        reader = csvreader(csvfile)
 
         output = []
         newRow = tuple()
@@ -58,5 +58,3 @@ def buildTables():
 
     data.commit()
     data.close()
-
-buildTables()
