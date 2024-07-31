@@ -15,6 +15,7 @@ from win32gui import FindWindow, GetWindowRect
 from buildTables import buildTables
 from buildCompList import buildComponentList
 from createLoadout import createLoadout
+from fcCalcUtility import fcCalc
 from importBackup import importBackupData
 from manageComponents import manageComponents
 
@@ -1033,8 +1034,8 @@ def refreshPack(window, component, slotID, *arg):
             stats[4] = int(stats[2])
             stats[2] = "{:.3f}".format(tryFloat(ordnanceStats[2]))
             stats[3] = "{:.3f}".format(tryFloat(ordnanceStats[3]))
-            window[slot + 'stat3'].update(round(tryFloat(stats[0],1)))
-            window[slot + 'stat4'].update(round(tryFloat(stats[1],1)))
+            window[slot + 'stat3'].update(round(tryFloat(stats[0]),1))
+            window[slot + 'stat4'].update(round(tryFloat(stats[1]),1))
             window[slot + 'stat5'].update(stats[2])
             window[slot + 'stat6'].update(stats[3])
             window[slot + 'stat7'].update(stats[4])
@@ -1394,7 +1395,7 @@ def doPropulsionCalculations(window):
     else:
         speedModFoilsStr = speedModFoils
 
-    if not speedModFoils == 0:
+    if not speedModFoils == 0 and not speedModFoils == speedMod:
         window['chassisspeedmod'].update(str(speedModStr) + ' (' + str(speedModFoilsStr) + ')')
     else:
         window['chassisspeedmod'].update(str(speedModStr))
@@ -1410,7 +1411,7 @@ def doPropulsionCalculations(window):
     if not engine == "None":
         engineTS = tryFloat(engine[6])
         speed = engineTS * eoGenEff * speedMod * 10
-        if not speedModFoils == 0:
+        if not speedModFoils == 0 and not speedModFoils == speedMod:
             speedFoils = engineTS * eoGenEff * speedModFoils * 10
             window['topspeed'].update(str(int(speed)) + ' (' + str(int(speedFoils)) + ')')
         else:
@@ -1436,7 +1437,7 @@ def doPropulsionCalculations(window):
         decelGain = decelTime * boosterTS * speedMod / 2
         boostedDist = round(boostedTS/10 * boosterUptime - accelLoss + decelGain,0)
 
-        if not speedModFoils == 0:
+        if not speedModFoils == 0 and not speedModFoils == speedMod:
             boostedTSFoils = (engineTS * eoGenEff + boosterTS) * speedModFoils * 10
             accelTime = (boosterTS * speedModFoils) / (boosterAccel + accel)
             decelTime = (boosterTS * speedModFoils) / decel
@@ -1535,7 +1536,7 @@ def clearLoadout(window, clearType):
     updateOverloadMults(window)
     window.refresh()
 
-def updateLoadoutPreview(window, loadout):
+def updateLoadoutPreview(loadout):
     compdb = sqlite3.connect("file:Data\\savedata.db?mode=rw", uri=True)
     cur2 = compdb.cursor()
     tables = sqlite3.connect("file:Data\\tables.db?mode=ro", uri=True)
@@ -1640,7 +1641,7 @@ def loadLoadout(window):
         event, values = loadWindow.read()
         
         if event == 'loadoutname':
-            slotText, statText = updateLoadoutPreview(loadWindow, values['loadoutname'][0])
+            slotText, statText = updateLoadoutPreview(values['loadoutname'][0])
             loadWindow['text0'].update("Loadout Name:")
             loadWindow['data0'].update(values['loadoutname'][0])
             for i in range(1,20):
@@ -1743,12 +1744,12 @@ def loadLoadout(window):
                     if values['loadoutname'][0] == currentLoadout:
                         clearLoadout(window,"all")
                         window.refresh()
-                        loadoutList = listify(cur2.execute("SELECT name FROM loadout ORDER BY name ASC").fetchall())
-                        loadWindow['loadoutname'].update(values=loadoutList)
-                        for i in range(0,20):
-                            loadWindow['text' + str(i)].update("")
-                            loadWindow['data' + str(i)].update("")
-                        loadWindow.refresh()
+                    loadoutList = listify(cur2.execute("SELECT name FROM loadout ORDER BY name ASC").fetchall())
+                    loadWindow['loadoutname'].update(values=loadoutList)
+                    for i in range(0,20):
+                        loadWindow['text' + str(i)].update("")
+                        loadWindow['data' + str(i)].update("")
+                    loadWindow.refresh()
 
         if event == "Exit" or event == sg.WIN_CLOSED or event == 'Cancel':
             break
@@ -2006,15 +2007,15 @@ def main():
     menu_def = [
         ['&Loadout', ['&New Loadout', openLoadoutString, '!&Save Loadout', 'E&xit']],
         ['&Components', ['Add and &Manage Components', '!&Clear All Components']],
-        ['&Tools', ['&Import v1.x Data', '&Check for Updates']],
-        ['&Help', ['&Keyboard Shortcuts', 'Test']]
+        ['&Tools', ['&Flight Computer Calculator','&Import v1.x Data', '&Check for Updates']],
+        ['&Help', ['&Keyboard Shortcuts']]
     ]
 
     menu_def_save_enabled = [
         ['Loadout', ['&New Loadout', '&Open Loadout', '&Save Loadout', 'E&xit']],
         ['Components', ['Add and &Manage Components', '&Clear All Components']],
-        ['&Tools', ['&Import v1.x Data', '&Check for Updates']],
-        ['Help', ['&Keyboard Shortcuts', 'Test']]
+        ['&Tools', ['&Flight Computer Calculator','&Import v1.x Data', '&Check for Updates']],
+        ['Help', ['&Keyboard Shortcuts']]
     ]
 
     reactorText = [
@@ -3086,6 +3087,9 @@ def main():
 
         if event == 'Keyboard Shortcuts':
             alert("Keyboard Shortcuts",['• Ctrl+N - New loadout', '• Ctrl+S - Save loadout', '• Ctrl+O - Open and manage loadouts','• Ctrl+A/Ctrl+M - Add and manage components','• Ctrl+X - Clear components from loadout','• Ctrl+C - Copy loadout screencap to clipboard',''],["Got it!"],0)
+
+        if event == 'Flight Computer Calculator':
+            fcCalc(window)
 
         if event == "Quit" or event == sg.WINDOW_CLOSE_ATTEMPTED_EVENT:
             doExitSave(window)
