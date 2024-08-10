@@ -1,42 +1,42 @@
-droidcommand_reactoroverloadone,Reactor Overload - One,5,REACTOR,0.1,1,1.1,5,0,0,0,0
-droidcommand_reactoroverloadtwo,Reactor Overload - Two,10,REACTOR,0.15,1,1.3,5,0,0,0,0
-droidcommand_reactoroverloadthree,Reactor Overload - Three,19,REACTOR,0.22,1,1.6,10,0,0,0,0
-droidcommand_reactoroverloadfour,Reactor Overload - Four,24,REACTOR,0.25,1,1.9,30,0,0,0,0
-droidcommand_engineoverloadone,Engine Overload - One,5,ENGINE,0.1,0.8,1.1,1,0,0,0,0
-droidcommand_engineoverloadtwo,Engine Overload - Two,10,ENGINE,0.2,0.6,1.2,3,0,0,0,0
-droidcommand_engineoverloadthree,Engine Overload - Three,19,ENGINE,0.2,0.3,1.3,6,0,0,0,0
-droidcommand_engineoverloadfour,Engine Overload - Four,24,ENGINE,0.25,0.1,1.4,18,0,0,0,0
-droidcommand_weapcappowerupone,Weapon Capacitor Overcharge - One,5,CAPACITOR,0.1,1.25,1.25,2,0,0,0,0
-droidcommand_weapcappoweruptwo,Weapon Capacitor Overcharge - Two,10,CAPACITOR,0.15,1.5,1.5,4,0,0,0,0
-droidcommand_weapcappowerupthree,Weapon Capacitor Overcharge - Three,19,CAPACITOR,0.2,1.75,1.75,8,0,0,0,0
-droidcommand_weapcappowerupfour,Weapon Capacitor Overcharge - Four,24,CAPACITOR,0.25,2,2,16,0,0,0,0
-droidcommand_weaponoverloadone,Weapon Overload - One,5,ALL_WEAPONS,0.2,0.7,1.25,1,0,0,0,0
-droidcommand_weaponoverloadtwo,Weapon Overload - Two,10,ALL_WEAPONS,0.2,0.5,1.5,3,0,0,0,0
-droidcommand_weaponoverloadthree,Weapon Overload - Three,19,ALL_WEAPONS,0.25,0.35,2,6,0,0,0,0
-droidcommand_weaponoverloadfour,Weapon Overload - Four,24,ALL_WEAPONS,0.3,0.2,3,18,0,0,0,0
-droidcommand_weapcaptoshieldone,Capacitor to Shield Shunt - One,5,SHIELD_0,1,1,1,0,0,0,0.25,0
-droidcommand_weapcaptoshieldtwo,Capacitor to Shield Shunt - Two,10,SHIELD_0,1,1,1,0,0,0,0.5,0
-droidcommand_weapcaptoshieldthree,Capacitor to Shield Shunt - Three,20,SHIELD_0,1,1,1,0,0,0,0.75,0
-droidcommand_weapcaptoshieldfour,Capacitor to Shield Shunt - Four,25,SHIELD_0,1,1,1,0,0,0,1,0
-droidcommand_shieldbacktofronttwenty,Shield Front Reinforcement - Light,5,SHIELD_0,0.1,0,0,0,0,0.2,0,0
-droidcommand_shieldbacktofrontfifty,Shield Front Reinforcement - Moderate,10,SHIELD_0,0.15,0,0,0,0,0.4,0,0
-droidcommand_shieldbacktofronteighty,Shield Front Reinforcement - Heavy,20,SHIELD_0,0.175,0,0,0,0,0.8,0,0
-droidcommand_shieldbacktofronthundred,Shield Front Reinforcement - Extreme,25,SHIELD_0,0.2,0,0,0,0,1,0,0
-droidcommand_shieldfronttobacktwenty,Shield Rear Reinforcement - Light,5,SHIELD_0,0.1,0,0,0,0.2,0,0,0
-droidcommand_shieldfronttobackfifty,Shield Rear Reinforcement - Moderate,10,SHIELD_0,0.15,0,0,0,0.4,0,0,0
-droidcommand_shieldfronttobackeighty,Shield Rear Reinforcement - Heavy,20,SHIELD_0,0.175,0,0,0,0.8,0,0,0
-droidcommand_shieldfronttobackhundred,Shield Rear Reinforcement - Extreme,25,SHIELD_0,0.2,0,0,0,1,0,0,0
-droidcommand_shieldadjustfrontone,Shield Front Adjust - Light,5,SHIELD_0,0.1,1,1,0,0,0,0,1.2
-droidcommand_shieldadjustfronttwo,Shield Front Adjust - Moderate,10,SHIELD_0,0.15,1,1,0,0,0,0,1.5
-droidcommand_shieldadjustfrontthree,Shield Front Adjust - Heavy,20,SHIELD_0,0.2,1,1,0,0,0,0,1.75
-droidcommand_shieldadjustfrontfour,Shield Front Adjust - Extreme,25,SHIELD_0,0.23,1,1,0,0,0,0,1.9
-droidcommand_shieldadjustrearone,Shield Rear Adjust - Light,5,SHIELD_0,0.1,1,1,0,0,0,0,0.8
-droidcommand_shieldadjustreartwo,Shield Rear Adjust - Moderate,10,SHIELD_0,0.15,1,1,0,0,0,0,0.5
-droidcommand_shieldadjustrearthree,Shield Rear Adjust - Heavy,20,SHIELD_0,0.2,1,1,0,0,0,0,0.25
-droidcommand_shieldadjustrearfour,Shield Rear Adjust - Extreme,25,SHIELD_0,0.23,1,1,0,0,0,0,0.1
-droidcommand_shieldnormalize,Shields Normalization,1,SHIELD_0,0.1,0,0,0,0,0,0,1
-droidcommand_shieldemergencyfront,Shield Emergency Front,35,SHIELD_0,0.5,1,1,0,0,0.75,0.75,0
-droidcommand_shieldemergencyrear,Shield Emergency Rear,35,SHIELD_0,0.5,1,1,0,0.75,0,0.75,0
-droidcommand_zonetoimperialdeepspace,Imperial hyperspace algorithm: Deep Space,1,NONE,0,0,0,0,0,0,0,0
-droidcommand_zonetokessel,Hyperspace algorithm: Kessel,1,NONE,0,0,0,0,0,0,0,0
-droidcommand_zonetorebeldeepspace,Rebel hyperspace algorithm: Deep Space,1,NONE,0,0,0,0,0,0,0,0
+droidcommand_reactoroverloadone,Reactor Overload - One,5,REACTOR,0.1,1,1.1,5,0,0,0,0,Reactor Generation Rate x1.1,5 Damage Dealt to Reactor,,
+droidcommand_reactoroverloadtwo,Reactor Overload - Two,10,REACTOR,0.15,1,1.3,5,0,0,0,0,Reactor Generation Rate x1.3,5 Damage Dealt to Reactor,,
+droidcommand_reactoroverloadthree,Reactor Overload - Three,19,REACTOR,0.22,1,1.6,10,0,0,0,0,Reactor Generation Rate x1.6,10 Damage Dealt to Reactor,,
+droidcommand_reactoroverloadfour,Reactor Overload - Four,24,REACTOR,0.25,1,1.9,30,0,0,0,0,Reactor Generation Rate x1.9,30 Damage Dealt to Reactor,,
+droidcommand_engineoverloadone,Engine Overload - One,5,ENGINE,0.1,0.8,1.1,1,0,0,0,0,"Engine Top Speed, Pitch, Yaw, and Roll x1.1","Chassis Accel, Decel, and PYR Accel x1.1",Engine Drain x1.25,1 Damage Dealt to Engine
+droidcommand_engineoverloadtwo,Engine Overload - Two,10,ENGINE,0.2,0.6,1.2,3,0,0,0,0,"Engine Top Speed, Pitch, Yaw, and Roll x1.2","Chassis Accel, Decel, and PYR Accel x1.2",Engine Drain x1.67,3 Damage Dealt to Engine
+droidcommand_engineoverloadthree,Engine Overload - Three,19,ENGINE,0.2,0.3,1.3,6,0,0,0,0,"Engine Top Speed, Pitch, Yaw, and Roll x1.3","Chassis Accel, Decel, and PYR Accel x1.3",Engine Drain x3.33,6 Damage Dealt to Engine
+droidcommand_engineoverloadfour,Engine Overload - Four,24,ENGINE,0.25,0.1,1.4,18,0,0,0,0,"Engine Top Speed, Pitch, Yaw, and Roll x1.4","Chassis Accel, Decel, and PYR Accel x1.4",Engine Drain x10,18 Damage Dealt to Engine
+droidcommand_weapcappowerupone,Weapon Capacitor Overcharge - One,5,CAPACITOR,0.1,1.25,1.25,2,0,0,0,0,Capacitor Energy and Recharge x1.25,Capacitor Drain x0.8,2 Damage Dealt to Capacitor,
+droidcommand_weapcappoweruptwo,Weapon Capacitor Overcharge - Two,10,CAPACITOR,0.15,1.5,1.5,4,0,0,0,0,Capacitor Energy and Recharge x1.5,Capacitor Drain x0.67,4 Damage Dealt to Capacitor,
+droidcommand_weapcappowerupthree,Weapon Capacitor Overcharge - Three,19,CAPACITOR,0.2,1.75,1.75,8,0,0,0,0,Capacitor Energy and Recharge x1.75,Capacitor Drain x0.57,8 Damage Dealt to Capacitor,
+droidcommand_weapcappowerupfour,Weapon Capacitor Overcharge - Four,24,CAPACITOR,0.25,2,2,16,0,0,0,0,Capacitor Energy and Recharge x2,Capacitor Drain x0.5,16 Damage Dealt to Capacitor,
+droidcommand_weaponoverloadone,Weapon Overload - One,5,ALL_WEAPONS,0.2,0.7,1.25,1,0,0,0,0,Weapon and Ordnance Damage x1.25,Weapon Energy/Shot x1.43,"Weapon, Ordnance, and Chaff Drain x1.43","1 Damage Dealt to Weapons, Ordnance, and Chaff"
+droidcommand_weaponoverloadtwo,Weapon Overload - Two,10,ALL_WEAPONS,0.2,0.5,1.5,3,0,0,0,0,Weapon and Ordnance Damage x1.5,Weapon Energy/Shot x2,"Weapon, Ordnance, and Chaff Drain x2","3 Damage Dealt to Weapons, Ordnance, and Chaff"
+droidcommand_weaponoverloadthree,Weapon Overload - Three,19,ALL_WEAPONS,0.25,0.35,2,6,0,0,0,0,Weapon and Ordnance Damage x2,Weapon Energy/Shot x2.86,"Weapon, Ordnance, and Chaff Drain x2.86","6 Damage Dealt to Weapons, Ordnance, and Chaff"
+droidcommand_weaponoverloadfour,Weapon Overload - Four,24,ALL_WEAPONS,0.3,0.2,3,18,0,0,0,0,Weapon and Ordnance Damage x3,Weapon Energy/Shot x5,"Weapon, Ordnance, and Chaff Drain x5","18 Damage Dealt to Weapons, Ordnance, and Chaff"
+droidcommand_weapcaptoshieldone,Capacitor to Shield Shunt - One,5,SHIELD_0,1,1,1,0,0,0,0.25,0,25% Capacitor Energy Drained,Front Shield Healed for 12.5% of Total CE,Back Shield Healed for 12.5% of Total CE,
+droidcommand_weapcaptoshieldtwo,Capacitor to Shield Shunt - Two,10,SHIELD_0,1,1,1,0,0,0,0.5,0,50% Capacitor Energy Drained,Front Shield Healed for 25% of Total CE,Back Shield Healed for 25% of Total CE,
+droidcommand_weapcaptoshieldthree,Capacitor to Shield Shunt - Three,20,SHIELD_0,1,1,1,0,0,0,0.75,0,75% Capacitor Energy Drained,Front Shield Healed for 37.5% of Total CE,Back Shield Healed for 37.5% of Total CE,
+droidcommand_weapcaptoshieldfour,Capacitor to Shield Shunt - Four,25,SHIELD_0,1,1,1,0,0,0,1,0,100% Capacitor Energy Drained,Front Shield Healed for 50% of Total CE,Back Shield Healed for 50% of Total CE,
+droidcommand_shieldbacktofronttwenty,Shield Front Reinforcement - Light,5,SHIELD_0,0.1,0,0,0,0,0.2,0,0,20% of Current Back Shield HP Drained,Front Shield Healed for Same Amount,,
+droidcommand_shieldbacktofrontfifty,Shield Front Reinforcement - Moderate,10,SHIELD_0,0.15,0,0,0,0,0.4,0,0,40% of Current Back Shield HP Drained,Front Shield Healed for Same Amount,,
+droidcommand_shieldbacktofronteighty,Shield Front Reinforcement - Heavy,20,SHIELD_0,0.175,0,0,0,0,0.8,0,0,80% of Current Back Shield HP Drained,Front Shield Healed for Same Amount,,
+droidcommand_shieldbacktofronthundred,Shield Front Reinforcement - Extreme,25,SHIELD_0,0.2,0,0,0,0,1,0,0,100% of Current Back Shield HP Drained,Front Shield Healed for Same Amount,,
+droidcommand_shieldfronttobacktwenty,Shield Rear Reinforcement - Light,5,SHIELD_0,0.1,0,0,0,0.2,0,0,0,20% of Current Front Shield HP Drained,Back Shield Healed for Same Amount,,
+droidcommand_shieldfronttobackfifty,Shield Rear Reinforcement - Moderate,10,SHIELD_0,0.15,0,0,0,0.4,0,0,0,40% of Current Front Shield HP Drained,Back Shield Healed for Same Amount,,
+droidcommand_shieldfronttobackeighty,Shield Rear Reinforcement - Heavy,20,SHIELD_0,0.175,0,0,0,0.8,0,0,0,80% of Current Front Shield HP Drained,Back Shield Healed for Same Amount,,
+droidcommand_shieldfronttobackhundred,Shield Rear Reinforcement - Extreme,25,SHIELD_0,0.2,0,0,0,1,0,0,0,100% of Current Front Shield HP Drained,Back Shield Healed for Same Amount,,
+droidcommand_shieldadjustfrontone,Shield Front Adjust - Light,5,SHIELD_0,0.1,1,1,0,0,0,0,1.2,Front Shield Max HP x1.2,Back Shield Max HP x0.8,,
+droidcommand_shieldadjustfronttwo,Shield Front Adjust - Moderate,10,SHIELD_0,0.15,1,1,0,0,0,0,1.5,Front Shield Max HP x1.5,Back Shield Max HP x0.5,,
+droidcommand_shieldadjustfrontthree,Shield Front Adjust - Heavy,20,SHIELD_0,0.2,1,1,0,0,0,0,1.75,Front Shield Max HP x1.75,Back Shield Max HP x0.25,,
+droidcommand_shieldadjustfrontfour,Shield Front Adjust - Extreme,25,SHIELD_0,0.23,1,1,0,0,0,0,1.9,Front Shield Max HP x1.9,Back Shield Max HP x0.1,,
+droidcommand_shieldadjustrearone,Shield Rear Adjust - Light,5,SHIELD_0,0.1,1,1,0,0,0,0,0.8,Front Shield Max HP x0.8,Back Shield Max HP x1.2,,
+droidcommand_shieldadjustreartwo,Shield Rear Adjust - Moderate,10,SHIELD_0,0.15,1,1,0,0,0,0,0.5,Front Shield Max HP x0.5,Back Shield Max HP x1.5,,
+droidcommand_shieldadjustrearthree,Shield Rear Adjust - Heavy,20,SHIELD_0,0.2,1,1,0,0,0,0,0.25,Front Shield Max HP x0.25,Back Shield Max HP x1.75,,
+droidcommand_shieldadjustrearfour,Shield Rear Adjust - Extreme,25,SHIELD_0,0.23,1,1,0,0,0,0,0.1,Front Shield Max HP x0.1,Back Shield Max HP x1.9,,
+droidcommand_shieldnormalize,Shields Normalization,1,SHIELD_0,0.1,0,0,0,0,0,0,1,All Shield Adjusts Reset,,,
+droidcommand_shieldemergencyfront,Shield Emergency Front,35,SHIELD_0,0.5,1,1,0,0,0.75,0.75,0,75% of Current Back Shield HP Drained,Front Shield Healed for Same Amount,75% of Capacitor Energy Drained,Front Shield Healed for 37.5% of Total CE
+droidcommand_shieldemergencyrear,Shield Emergency Rear,35,SHIELD_0,0.5,1,1,0,0.75,0,0.75,0,75% of Current Front Shield HP Drained,Back Shield Healed for Same Amount,75% of Capacitor Energy Drained,Back Shield Healed for 37.5% of Total CE
+droidcommand_zonetoimperialdeepspace,Imperial Hyperspace Algorithm: Deep Space,1,NONE,0,0,0,0,0,0,0,0,Hyperspace to Deep Space as Imperial Special Forces,,,
+droidcommand_zonetokessel,Hyperspace Algorithm: Kessel,1,NONE,0,0,0,0,0,0,0,0,Hyperspace to Kessel,,,
+droidcommand_zonetorebeldeepspace,Rebel Hyperspace Algorithm: Deep Space,1,NONE,0,0,0,0,0,0,0,0,Hyperspace to Deep Space as Rebel Special Forces,,,

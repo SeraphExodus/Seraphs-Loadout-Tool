@@ -187,7 +187,7 @@ def importBackup(filepath):
 def importBackupData():
 
     if not os.path.exists("Data\\tables.db"):
-        buildTables()
+        buildTables('null')
 
     if not os.path.exists("Data\\savedata.db"):
         buildComponentList()

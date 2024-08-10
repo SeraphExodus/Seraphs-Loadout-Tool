@@ -6,7 +6,6 @@ import win32clipboard
 
 from datetime import datetime, timedelta
 from io import BytesIO
-from numpy import round, ceil
 from PIL import ImageGrab
 from requests import get
 from webbrowser import open as browserOpen
@@ -19,7 +18,15 @@ from fcCalcUtility import fcCalc
 from importBackup import importBackupData
 from manageComponents import manageComponents
 
-currentVersion = "2.A.00"
+###Release Procedure:
+###Update VERSION NUMBER FIRST in both this file and on the gist.
+###Generate .exe
+###Upload new version
+###Update gist with new download link
+
+currentVersion = "2.A.03"
+
+buildTables(currentVersion)
 
 versionURL = "https://gist.github.com/SeraphExodus/8ae0b6980e3780e8782847dbe76b0bf5/raw"
 
@@ -218,6 +225,13 @@ def getThreeColorGradient(per):
             red = '0' + red
         color = '#' + red + 'cc00'
     return color
+
+def ceil(x):
+    try:
+        y = round(x+0.5)
+        return y
+    except:
+        SyntaxError
 
 def alert(headerText, textLines, buttons, timeout, *textSettings):
     Layout = []
@@ -433,9 +447,9 @@ def updateMassStrings(chassisMass, window):
     totalMass = str(round(tryFloat(window['reactormass'].get()) + tryFloat(window['enginemass'].get()) + tryFloat(window['boostermass'].get()) + tryFloat(window['shieldmass'].get()) + tryFloat(window['frontarmormass'].get()) + tryFloat(window['reararmormass'].get()) + tryFloat(window['dimass'].get()) + tryFloat(window['chmass'].get()) + tryFloat(window['capacitormass'].get()) + tryFloat(window['slot1stat2'].get()) + tryFloat(window['slot2stat2'].get()) + tryFloat(window['slot3stat2'].get()) + tryFloat(window['slot4stat2'].get()) + tryFloat(window['slot5stat2'].get()) + tryFloat(window['slot6stat2'].get()) + tryFloat(window['slot7stat2'].get()) + tryFloat(window['slot8stat2'].get()),1))
     try:
         if float(chassisMass) > 0:
-            percentMass = round(tryFloat(totalMass)/tryFloat(chassisMass)*100,2)
+            percentMass = round(tryFloat(totalMass)/tryFloat(chassisMass)*100,1)
             massString = str(totalMass) + " of " + str(round(float(chassisMass),1)) + " (" + str(percentMass) + "%)"
-            leftoverMass = str(round(float(chassisMass) - float(totalMass),1))# + " (" + str(round(100-percentMass,2)) + "%)"
+            leftoverMass = str(round(float(chassisMass) - float(totalMass),1))
             if percentMass > 100:
                 window['loadoutmass'].update(massString, text_color = "#dd0000")
             else:
@@ -557,7 +571,7 @@ def updateDrainStrings(window):
     if not overloadedGen == 0 or not overloadedDrain == 0:
         reactorUtilString = str(overloadedDrain) + " of " + str(overloadedGen)
         if overloadedGen > 0:
-            reactorUtilString+= " (" + str(round(tryFloat(overloadedDrain)/tryFloat(overloadedGen) * 100,2)) + "%)"
+            reactorUtilString+= " (" + str(round(tryFloat(overloadedDrain)/tryFloat(overloadedGen) * 100,1)) + "%)"
         reactorMinGenString = str(round(overloadedDrain / roEff, 1))
         if overloadedDrain > overloadedGen:
             window['totaldrain'].update(reactorUtilString, text_color='#dd0000')
@@ -801,14 +815,27 @@ def refreshShield(window, component, adjust):
         shield = displayPrecision(shield, [1, 1, 1, 2])
         window['shieldred'].update(shield[1])
         window['shieldmass'].update(shield[2])
-        window['shieldfshp'].update(round(tryFloat(shield[3]) * adjustFrontRatio,1))
-        window['shieldbshp'].update(round(tryFloat(shield[3]) * (2 - adjustFrontRatio),1))
+        window['shieldhp'].update(round(tryFloat(shield[3]),1))
         window['shieldrr'].update("{:.2f}".format(shield[4]))
+
+        if adjustFrontRatio != 1:
+            window['adjusttext'].update("Adjust:")
+            window['adjustfronttext'].update("Front HP:")
+            window['adjustbacktext'].update("Back HP:")
+            window['shieldadjust'].update(halves[0][0] + ' | ' + halves[1])
+            window['shieldfront'].update(round(tryFloat(shield[3]) * adjustFrontRatio,1))
+            window['shieldback'].update(round(tryFloat(shield[3]) * (2 - adjustFrontRatio),1))
+        else:
+            window['adjusttext'].update("")
+            window['adjustfronttext'].update("")
+            window['adjustbacktext'].update("")
+            window['shieldadjust'].update("")
+            window['shieldfront'].update("")
+            window['shieldback'].update("")
     else:
         window['shieldred'].update("")
         window['shieldmass'].update("")
-        window['shieldfshp'].update("")
-        window['shieldbshp'].update("")
+        window['shieldhp'].update("")
         window['shieldrr'].update("")
 
     compdb.close()
@@ -1572,51 +1599,12 @@ def loadLoadout(window):
         [sg.Listbox(values=loadoutList, size=(30, 24), enable_events=True, key='loadoutname', font=baseFont, select_mode="single", justification='center')]
     ]
 
-    rightColLeft = [
-        [sg.Push(),sg.Text("", font=baseFont, key='text0', p=fontPadding)],
-        [sg.Push(),sg.Text("", font=baseFont, key='text1', p=fontPadding)],
-        [sg.Push(),sg.Text("", font=baseFont, key='text2', p=fontPadding)],
-        [sg.Push(),sg.Text("", font=baseFont, key='text3', p=fontPadding)],
-        [sg.Push(),sg.Text("", font=baseFont, key='text4', p=fontPadding)],
-        [sg.Push(),sg.Text("", font=baseFont, key='text5', p=fontPadding)],
-        [sg.Push(),sg.Text("", font=baseFont, key='text6', p=fontPadding)],
-        [sg.Push(),sg.Text("", font=baseFont, key='text7', p=fontPadding)],
-        [sg.Push(),sg.Text("", font=baseFont, key='text8', p=fontPadding)],
-        [sg.Push(),sg.Text("", font=baseFont, key='text9', p=fontPadding)],
-        [sg.Push(),sg.Text("", font=baseFont, key='text10', p=fontPadding)],
-        [sg.Push(),sg.Text("", font=baseFont, key='text11', p=fontPadding)],
-        [sg.Push(),sg.Text("", font=baseFont, key='text12', p=fontPadding)],
-        [sg.Push(),sg.Text("", font=baseFont, key='text13', p=fontPadding)],
-        [sg.Push(),sg.Text("", font=baseFont, key='text14', p=fontPadding)],
-        [sg.Push(),sg.Text("", font=baseFont, key='text15', p=fontPadding)],
-        [sg.Push(),sg.Text("", font=baseFont, key='text16', p=fontPadding)],
-        [sg.Push(),sg.Text("", font=baseFont, key='text17', p=fontPadding)],
-        [sg.Push(),sg.Text("", font=baseFont, key='text18', p=fontPadding)],
-        [sg.Push(),sg.Text("", font=baseFont, key='text19', p=fontPadding)],
-    ]
+    rightColLeft = []
+    rightColRight = []
 
-    rightColRight = [
-        [sg.Text("", font=baseFont, key='data0', p=fontPadding), sg.Push()],
-        [sg.Text("", font=baseFont, key='data1', p=fontPadding), sg.Push()],
-        [sg.Text("", font=baseFont, key='data2', p=fontPadding), sg.Push()],
-        [sg.Text("", font=baseFont, key='data3', p=fontPadding), sg.Push()],
-        [sg.Text("", font=baseFont, key='data4', p=fontPadding), sg.Push()],
-        [sg.Text("", font=baseFont, key='data5', p=fontPadding), sg.Push()],
-        [sg.Text("", font=baseFont, key='data6', p=fontPadding), sg.Push()],
-        [sg.Text("", font=baseFont, key='data7', p=fontPadding), sg.Push()],
-        [sg.Text("", font=baseFont, key='data8', p=fontPadding), sg.Push()],
-        [sg.Text("", font=baseFont, key='data9', p=fontPadding), sg.Push()],
-        [sg.Text("", font=baseFont, key='data10', p=fontPadding), sg.Push()],
-        [sg.Text("", font=baseFont, key='data11', p=fontPadding), sg.Push()],
-        [sg.Text("", font=baseFont, key='data12', p=fontPadding), sg.Push()],
-        [sg.Text("", font=baseFont, key='data13', p=fontPadding), sg.Push()],
-        [sg.Text("", font=baseFont, key='data14', p=fontPadding), sg.Push()],
-        [sg.Text("", font=baseFont, key='data15', p=fontPadding), sg.Push()],
-        [sg.Text("", font=baseFont, key='data16', p=fontPadding), sg.Push()],
-        [sg.Text("", font=baseFont, key='data17', p=fontPadding), sg.Push()],
-        [sg.Text("", font=baseFont, key='data18', p=fontPadding), sg.Push()],
-        [sg.Text("", font=baseFont, key='data19', p=fontPadding), sg.Push()],
-    ]
+    for i in range(0,20):
+        rightColLeft.append([sg.Push(),sg.Text("", font=baseFont, key='text'+str(i), p=fontPadding)])
+        rightColRight.append([sg.Text("", font=baseFont, key='data'+str(i), p=fontPadding),sg.Push()])
 
     rightCol = [
         [sg.Push(),sg.Text("Loadout Preview", font=headerFont),sg.Push()],
@@ -1988,7 +1976,7 @@ def updateProfile(window):
 def main():
 
     if not os.path.exists("Data\\tables.db"):
-        buildTables()
+        buildTables(currentVersion)
 
     if not os.path.exists("Data\\savedata.db"):
         buildComponentList()
@@ -2098,17 +2086,24 @@ def main():
     shieldText = [
         [sg.Push(),sg.Text("Drain:", font=baseFont, p=fontPadding)],
         [sg.Push(),sg.Text("Mass:", font=baseFont, p=fontPadding)],
-        [sg.Push(),sg.Text("Front HP:", font=baseFont, p=fontPadding)],
-        [sg.Push(),sg.Text("Back HP:", font=baseFont, p=fontPadding)],
+        [sg.Push(),sg.Text("Shield HP:", font=baseFont, p=fontPadding)],
         [sg.Push(),sg.Text("Recharge:", font=baseFont, p=fontPadding)],
+        [sg.VPush()],
+        [sg.Push(),sg.Text("", font=baseFont, p=fontPadding,key='adjusttext')],
+        [sg.Push(),sg.Text("", font=baseFont, p=fontPadding,key='adjustfronttext')],
+        [sg.Push(),sg.Text("", font=baseFont, p=fontPadding,key='adjustbacktext')],
     ]
 
     shieldStats = [
         [sg.Text("", key='shieldred', font=baseFontStats, s=10, p=fontPadding), sg.Push()],
         [sg.Text("", key='shieldmass', font=baseFontStats, s=10, p=fontPadding), sg.Push()],
-        [sg.Text("", key='shieldfshp', font=baseFontStats, s=10, p=fontPadding), sg.Push()],
-        [sg.Text("", key='shieldbshp', font=baseFontStats, s=10, p=fontPadding), sg.Push()],
+        [sg.Text("", key='shieldhp', font=baseFontStats, s=10, p=fontPadding), sg.Push()],
         [sg.Text("", key='shieldrr', font=baseFontStats, s=10, p=fontPadding), sg.Push()],
+        [sg.VPush()],
+        [sg.Text("", key='shieldadjust', font=baseFontStats, s=10, p=fontPadding), sg.Push()],
+        [sg.Text("", key='shieldfront', font=baseFontStats, s=10, p=fontPadding), sg.Push()],
+        [sg.Text("", key='shieldback', font=baseFontStats, s=10, p=fontPadding), sg.Push()],
+
     ]
 
     powerBoxLayoutShield = [
@@ -2117,7 +2112,7 @@ def main():
 
     shieldBox = [
         [sg.Frame('',[[]],border_width=0,s=(20,20),p=5),sg.Frame('',[[sg.Push(),sg.Text("Shield", font=headerFont),sg.Push()]],border_width=0,p=0,s=(compBoxWidth-65,28)),sg.Frame('',powerBoxLayoutShield,border_width=0,background_color=boxColor, s=(20,20), p=5, key='shieldpowerboxframecolor')],
-        [sg.Frame('',shieldText,border_width=0,p=0,s=(compBoxWidth/2,row1Height-65)), sg.Push(),sg.Frame('',shieldStats,border_width=0,p=0,s=(compBoxWidth/2-5,row1Height-65))],
+        [sg.Frame('',shieldText,border_width=0,p=0,s=(compBoxWidth/2,row1Height-64)), sg.Push(),sg.Frame('',shieldStats,border_width=0,p=0,s=(compBoxWidth/2-5,row1Height-64))],
         [sg.VPush()],
         [sg.Combo(values = [], size=(28,10), readonly=True, key='shieldselection', enable_events=True, font=baseFont, disabled=True, background_color=bgColor)]
     ]
@@ -2931,7 +2926,7 @@ def main():
                 if currentVersion != latestVersion:
                     result = alert("Alert",['Your version of the Loadout Tool appears to be out of date.', 'Click below to get the most recent version.',""],['Get Newest Version','Continue Anyway'],0)
                     if result == 'Get Newest Version':
-                        webbrowser.open(latestURL)
+                        browserOpen(latestURL)
                         window.close()
                         return
                 else:
@@ -2946,7 +2941,7 @@ def main():
                 appWindow = FindWindow(None, "Seraph's Loadout Tool v2.0 Alpha")
                 rect = GetWindowRect(appWindow)
                 rect = (rect[0]+8, rect[1]+51, rect[2]-8, rect[3]-8)
-                grab = ImageGrab.grab(bbox=rect)
+                grab = ImageGrab.grab(bbox=rect, all_screens=True)
                 screencapOutput = BytesIO()
                 grab.convert("RGB").save(screencapOutput,"BMP")
                 data = screencapOutput.getvalue()[14:]
@@ -3089,7 +3084,8 @@ def main():
             alert("Keyboard Shortcuts",['• Ctrl+N - New loadout', '• Ctrl+S - Save loadout', '• Ctrl+O - Open and manage loadouts','• Ctrl+A/Ctrl+M - Add and manage components','• Ctrl+X - Clear components from loadout','• Ctrl+C - Copy loadout screencap to clipboard',''],["Got it!"],0)
 
         if event == 'Flight Computer Calculator':
-            fcCalc(window)
+            dcs = window['didcs'].get()
+            fcCalc(dcs)
 
         if event == "Quit" or event == sg.WINDOW_CLOSE_ATTEMPTED_EVENT:
             doExitSave(window)
