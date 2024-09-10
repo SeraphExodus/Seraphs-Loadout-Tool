@@ -35,6 +35,12 @@ sg.theme_add_new('Discord_Dark', theme_definition)
 
 sg.theme('Discord_Dark')
 
+def remodalize(window):
+    try:
+        window.TKroot.grab_set()
+    except:
+        pass
+
 def listify(x):
     xnew = []
     for i in x:
@@ -253,11 +259,11 @@ def newFCLoadout():
             name = values['fcname']
             if values['fcname'] == '' or values['fclevel'] == '':
                 alert('Error',['Error: You must enter a name and select an FC Level.'],['Okay'],0)
-                newFCWindow.TKroot.grab_set()
+                remodalize(newFCWindow)
             else:
                 if name in nameList:
                     out = alert('Alert',['','A Flight Computer loadout with this name already exists. Do you wish to overwrite it?',''],['Proceed','Cancel'],0)
-                    newFCWindow.TKroot.grab_set()
+                    remodalize(newFCWindow)
                     if out == 'Proceed':
                         bindings = '?, ' * 33
                         bindings = bindings[:-2]
@@ -301,7 +307,7 @@ def saveFCLoadout(window):
     
     cur2.execute("INSERT OR REPLACE INTO fcloadout VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",saveData)
     alert("",['Save Successful!'],[],1.5)
-    window.TKroot.grab_set()
+    remodalize(window)
 
     compdb.commit()
     compdb.close()
@@ -404,15 +410,15 @@ def loadFCLoadout(window):
                 break
             except:
                 alert('',['Select a flight computer to load.'],[],1.5)
-                loadFCWindow.TKroot.grab_set()
+                remodalize(loadFCWindow)
 
         if event == 'Delete':
             if values['fcname'] == '':
                 alert('Error',['Error: Select a flight computer.'],[],1.5)
-                loadFCWindow.TKroot.grab_set()
+                remodalize(loadFCWindow)
             else:
                 result = alert('Alert',["You are attempting to delete the flight computer loadout named '" + values['fcname'][0] + ".'", 'This action cannot be undone. Do you wish to continue?'],['Proceed','Cancel'],0)
-                loadFCWindow.TKroot.grab_set()
+                remodalize(loadFCWindow)
                 if result == 'Proceed':
                     cur2.execute("DELETE FROM fcloadout WHERE name = ?",values['fcname'])
                     loadFCWindow['nametext'].update('')
@@ -438,17 +444,24 @@ def loadFCLoadout(window):
     db.close()
     return loaded
 
-def updateMacroButton(window, menuDef1, menuDef2):
+def updateMacroButton(window):
     event, values = window.read(timeout=0)
     filledCount = 0
     for i in range(0,15):
         if values['checkbox' + str(i)] != False:
             filledCount += 1
     if filledCount > 0:
-        window['menu'].update(menuDef1)
+        return '&Copy Macro'
     else:
-        window['menu'].update(menuDef2)
-    window.refresh()
+        return '!&Copy Macro'
+
+def setMenu(saveLock, openLock, macroLock):
+    menu_def = [
+        ['&Flight Computer', ['&New FC Loadout', openLock, saveLock, 'E&xit']],
+        ['&Macro', [macroLock]],
+        ['&Help', ['&Keyboard Shortcuts']]
+    ]
+    return menu_def
 
 def fcCalc(*dcs):
     if not os.path.exists("Data\\tables.db"):
@@ -498,21 +511,25 @@ def fcCalc(*dcs):
         [sg.Input(default_text=defaultDCS,p=2,font=summaryFont,s=10,key='dcs',justification='center',disabled=True, disabled_readonly_background_color=boxColor,disabled_readonly_text_color=textColor),sg.Push()]
     ]
 
+    compdb = sqlite3.connect("file:Data\\savedata.db?mode=rw", uri=True)
+    cur2 = compdb.cursor()
+
+    try:
+        saved = cur2.execute("SELECT name FROM fcloadout").fetchall()
+    except:
+        saved = []
+
+    if len(saved) > 0:
+        openLock = '&Open FC Loadout'
+    else:
+        openLock = '!&Open FC Loadout'
+
+    saveLock = '!&Save FC Loadout'
+    macroLock = '!&Copy Macro'
+
     menu_def = [
-        ['&Flight Computer', ['&New FC Loadout', '&Open FC Loadout', '!&Save FC Loadout', 'E&xit']],
-        ['&Macro', ['!&Copy Macro']],
-        ['&Help', ['&Keyboard Shortcuts']]
-    ]
-
-    menu_def_save_unlocked = [
-        ['&Flight Computer', ['&New FC Loadout', '&Open FC Loadout', '&Save FC Loadout', 'E&xit']],
-        ['&Macro', ['&!Copy Macro']],
-        ['&Help', ['&Keyboard Shortcuts']]
-    ]
-
-    menu_def_save_macro_unlocked = [
-        ['&Flight Computer', ['&New FC Loadout', '&Open FC Loadout', '&Save FC Loadout', 'E&xit']],
-        ['&Macro', ['&Copy Macro']],
+        ['&Flight Computer', ['&New FC Loadout', openLock, saveLock, 'E&xit']],
+        ['&Macro', [macroLock]],
         ['&Help', ['&Keyboard Shortcuts']]
     ]
 
@@ -538,11 +555,10 @@ def fcCalc(*dcs):
 
         if event == 'New FC Loadout':
             newFCName, newFCLevel = newFCLoadout()
-            window.TKroot.grab_set()
+            remodalize(window)
             if newFCName != '':
                 window['fcname'].update(newFCName)
                 window['fclevel'].update(newFCLevel)
-                window['menu'].update(menu_def_save_unlocked)
                 window['dcs'].update(disabled=False)
                 for i in range(0,15):
                     window['list' + str(i)].update('')
@@ -550,19 +566,24 @@ def fcCalc(*dcs):
                 updateMemory(window,programNames,memory)
                 updateCooldown(window,programNames,cooldown)
                 updateOrder(window,programNames,slashCommand)
-                updateMacroButton(window,menu_def_save_macro_unlocked,menu_def_save_unlocked)
+                saveLock = '&Save FC Loadout'
+                macroLock = updateMacroButton(window)
+                menu_def = setMenu(saveLock, openLock, macroLock)
+                window['menu'].update(menu_def)
 
         if event == 'Open FC Loadout':
             loaded = loadFCLoadout(window)
-            window.TKroot.grab_set()
+            remodalize(window)
             if loaded:
-                window['menu'].update(menu_def_save_unlocked)
                 window['dcs'].update(disabled=False)
                 updateEnables(window)
                 updateMemory(window,programNames,memory)
                 updateCooldown(window,programNames,cooldown)
                 updateOrder(window,programNames,slashCommand)
-                updateMacroButton(window,menu_def_save_macro_unlocked,menu_def_save_unlocked)
+                saveLock = '&Save FC Loadout'
+                macroLock = updateMacroButton(window)
+                menu_def = setMenu(saveLock, openLock, macroLock)
+                window['menu'].update(menu_def)
 
         if event == 'Save FC Loadout':
             saveFCLoadout(window)
@@ -597,7 +618,9 @@ def fcCalc(*dcs):
         try:
             if 'checkbox' in event:
                 updateOrder(window,programNames,slashCommand)
-                updateMacroButton(window,menu_def_save_macro_unlocked,menu_def_save_unlocked)
+                macroLock = updateMacroButton(window)
+                menu_def = setMenu(saveLock, openLock, macroLock)
+                window['menu'].update(menu_def)
         except:
             pass
 
@@ -619,7 +642,9 @@ def fcCalc(*dcs):
                 updateMemory(window,programNames,memory)
                 updateCooldown(window,programNames,cooldown)
                 updateOrder(window,programNames,slashCommand)
-                updateMacroButton(window,menu_def_save_macro_unlocked,menu_def_save_unlocked)
+                macroLock = updateMacroButton(window)
+                menu_def = setMenu(saveLock, openLock, macroLock)
+                window['menu'].update(menu_def)
         except:
             pass
 
@@ -680,11 +705,11 @@ def fcCalc(*dcs):
             if macroText != '':
                 toClipboard(macroText)
                 alert("",["Macro copied to clipboard!"],[],1.5)
-                window.TKroot.grab_set()
+                remodalize(window)
 
         if event == "Keyboard Shortcuts":
             alert("Keyboard Shortcuts",['• Ctrl+N - New FC loadout', '• Ctrl+S - Save FC loadout', '• Ctrl+O - Open FC loadout', '• Ctrl+C - Copy macro to clipboard',''],['Got it!'],0)
-            window.TKroot.grab_set()
+            remodalize(window)
 
         if event == "Exit" or event == sg.WIN_CLOSED:
             break

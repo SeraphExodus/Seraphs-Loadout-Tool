@@ -3,13 +3,6 @@ import sqlite3
 
 from csv import reader as csvreader
 
-def isFloat(n):
-    try:
-        float(n)
-        return True
-    except:
-        return False
-
 def buildList(path):
     with open(path, newline='') as csvfile:
         reader = csvreader(csvfile)

@@ -3,8 +3,6 @@ import sqlite3
 
 def buildComponentList():
 
-    #RUNNING THIS WILL DELETE THE COMPONENT DATABASE AND REBUILD IT FROM SCRATCH!
-
     if not os.path.exists("Data"):
         os.makedirs("Data")
     if not os.path.exists("Data\\savedata.db"):

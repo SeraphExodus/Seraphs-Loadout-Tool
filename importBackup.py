@@ -73,6 +73,14 @@ def doAlertYN(alertText):
     alertWindow.close()
     return output
 
+def tryStr(x):
+    try:
+        out = str(x)
+    except:
+        out = ''
+    
+    return out
+
 def importBackup(filepath):
 
     compdb = sqlite3.connect("file:Data\\savedata.db?mode=rw", uri=True)
@@ -82,70 +90,71 @@ def importBackup(filepath):
 
     reactors = data['Reactors'].values.tolist()
     for i in reactors:
-        entry = [i[0], i[15], i[19]]
+        entry = [tryStr(i[0]), i[15], i[19]]
         entry = [1 if x == 0 or x == '' else x for x in entry]
+        entry[0] = tryStr(entry[0])
         if entry[0] != '':
             cur2.execute("INSERT OR REPLACE INTO reactor(name, mass, reactorgenerationrate) VALUES(?, ?, ?)",entry)
             
     engines = data['Engines'].values.tolist()
     for i in engines:
-        entry = [i[0], i[15], i[19], i[23], i[27], i[31], i[35]]
+        entry = [tryStr(i[0]), i[15], i[19], i[23], i[27], i[31], i[35]]
         entry = [1 if x == 0 or x == '' else x for x in entry]
         if entry[0] != '':
             cur2.execute("INSERT OR REPLACE INTO engine(name, reactorenergydrain, mass, pitchratemaximum, yawratemaximum, rollratemaximum, enginetopspeed) VALUES(?, ?, ?, ?, ?, ?, ?)",entry)
 
     boosters = data['Boosters'].values.tolist()
     for i in boosters:
-        entry = [i[0], i[15], i[19], i[23], i[27], i[31], i[35], i[39]]
+        entry = [tryStr(i[0]), i[15], i[19], i[23], i[27], i[31], i[35], i[39]]
         entry = [1 if x == 0 or x == '' else x for x in entry]
         if entry[0] != '':
             cur2.execute("INSERT OR REPLACE INTO booster(name, reactorenergydrain, mass, boosterenergy, boosterrechargerate, boosterenergyconsumptionrate, acceleration, topboosterspeed) VALUES(?, ?, ?, ?, ?, ?, ?, ?)",entry)
 
     shields = data['Shields'].values.tolist()
     for i in shields:
-        entry = [i[0], i[15], i[19], i[23], i[27]]
+        entry = [tryStr(i[0]), i[15], i[19], i[23], i[27]]
         entry = [1 if x == 0 or x == '' else x for x in entry]
         if entry[0] != '':
             cur2.execute("INSERT OR REPLACE INTO shield(name, reactorenergydrain, mass, shieldhitpoints, shieldrechargerate) VALUES(?, ?, ?, ?, ?)",entry)
 
     armor = data['Armor'].values.tolist()
     for i in armor:
-        entry = [i[0], i[15], i[19]]
+        entry = [tryStr(i[0]), i[15], i[19]]
         entry = [1 if x == 0 or x == '' else x for x in entry]
         if entry[0] != '':
             cur2.execute("INSERT OR REPLACE INTO armor(name, armorhitpoints, mass) VALUES(?, ?, ?)",entry)
 
     dis = data['DIs'].values.tolist()
     for i in dis:
-        entry = [i[0], i[15], i[19], i[23]]
+        entry = [tryStr(i[0]), i[15], i[19], i[23]]
         entry = [1 if x == 0 or x == '' else x for x in entry]
         if entry[0] != '':
             cur2.execute("INSERT OR REPLACE INTO droidinterface(name, reactorenergydrain, mass, droidcommandspeed) VALUES(?, ?, ?, ?)",entry)
 
     chs = data['Cargo Holds'].values.tolist()
     for i in chs:
-        entry = [i[0], i[19]]
+        entry = [tryStr(i[0]), i[19]]
         entry = [1 if x == 0 or x == '' else x for x in entry]
         if entry[0] != '':
             cur2.execute("INSERT OR REPLACE INTO cargohold(name, mass) VALUES(?, ?)",entry)
 
     caps = data['Capacitors'].values.tolist()
     for i in caps:
-        entry = [i[0], i[15], i[19], i[23], i[27]]
+        entry = [tryStr(i[0]), i[15], i[19], i[23], i[27]]
         entry = [1 if x == 0 or x == '' else x for x in entry]
         if entry[0] != '':
             cur2.execute("INSERT OR REPLACE INTO capacitor(name, reactorenergydrain, mass, capacitorenergy, rechargerate) VALUES(?, ?, ?, ?, ?)",entry)
 
     weapons = data['Weapons'].values.tolist()
     for i in weapons:
-        entry = [i[0], i[15], i[19], i[23], i[27], i[31], i[35], i[39], i[43]]
+        entry = [tryStr(i[0]), i[15], i[19], i[23], i[27], i[31], i[35], i[39], i[43]]
         entry = [1 if x == 0 or x == '' else x for x in entry]
         if entry[0] != '':
             cur2.execute("INSERT OR REPLACE INTO weapon(name, reactorenergydrain, mass, minimumdamage, maximumdamage, vsshields, vsarmor, energyshot, refirerate) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)",entry)
 
     loadouts = data['Loadouts'].values.tolist()
     for i in loadouts:
-        entry = [i[0], i[1], i[2], i[7], i[8], i[5], i[11], i[10], i[9], i[4], i[3], i[6], i[12], i[13], i[14], i[15], i[16], i[17], i[18], i[19], 'None', 'None', 'None', 'None', 'None', 'None', 'None', 'None', i[21], i[22], i[23], i[24], i[29]]
+        entry = [tryStr(i[0]), i[1], i[2], i[7], i[8], i[5], i[11], i[10], i[9], i[4], i[3], i[6], i[12], i[13], i[14], i[15], i[16], i[17], i[18], i[19], 'None', 'None', 'None', 'None', 'None', 'None', 'None', 'None', i[21], i[22], i[23], i[24], i[29]]
         armorList = listify(cur2.execute("SELECT name FROM armor").fetchall())
         boosterList = listify(cur2.execute("SELECT name FROM booster").fetchall())
         capList = listify(cur2.execute("SELECT name FROM capacitor").fetchall())
@@ -159,8 +168,10 @@ def importBackup(filepath):
         lists = [armorList, armorList, boosterList, capList, chList, diList, engineList, reactorList, shieldList, weaponList, weaponList, weaponList, weaponList, weaponList, weaponList, weaponList, weaponList]
 
         for j in range(3,20):
-            if entry[j] not in lists[j-3]:
+            if tryStr(entry[j]) == '' or tryStr(entry[j]) not in lists[j-3]:
                 entry[j] = "None"
+            else:
+                entry[j] = tryStr(entry[j])
 
         if i[29] == "No Adjust":
             entry[32] = "None"
