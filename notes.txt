@@ -1,0 +1,19 @@
+Deleting FC project doesn't update the FC calc to clear it. Probably should.
+Need to make some changes all around to make sure tables are built properly before user can access them
+
+Add option to remove RE project after exporting?
+
+Attempting to load FC loadout without having any saved causes a crash. Need to disable menu option if no saved loadouts found
+
+Implement unicorn indicator
+
+Add option to edit loadout names or create copies
+
+Colors:
+#ff6969 Red
+#ff6e00 Orange
+#ffbb00 Yellow
+#00cc00 Green
+#00cccc Cyan
+#ff42ff Magenta
+
