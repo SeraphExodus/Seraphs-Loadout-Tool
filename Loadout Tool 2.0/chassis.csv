@@ -12,7 +12,7 @@ Heavy TIE Fighter,97000,Ordnance 1,Weapon 1,Countermeasures,,,,,,50,50,425,400,2
 Heavy Z-95 Headhunter,97000,Ordnance 1,Weapon 1,Countermeasures,,,,,,50,50,400,425,200,0.96,N/A,0.2,0.7,0.7,1.8
 Incom X-4 Gunship,3000000,Weapon / CM 1,Weapon / CM 2,Weapon 3 (Turret),Weapon 4 (Turret),Weapon 5 (Turret),Weapon 6 (Turret),Weapon 7 (Turret),Weapon 8 (Turret),10,10,10,10,10,0.65,N/A,0.1,0.2,0.2,1.2
 Ixiyen Starfighter,260000,Ordnance 1,Ordnance 2,Weapon 1,Weapon 2,Countermeasures,,,,35,35,200,200,100,0.95,N/A,0.2,0.4,0.5,1.3
-Kihraxz Starfighter,40750,Ordnance 1,Weapon 1,Countermeasures,,,,,,35,35,400,400,200,1,N/A,0.2,0.5,0.75,1.6
+Kihraxz Starfighter,102500,Ordnance 1,Weapon 1,Weapon 2,Countermeasures,,,,,35,30,350,350,175,0.97,N/A,0.2,0.6,0.7,1.4
 Kimogila Starfighter,290000,Ordnance 1,Ordnance 2,Weapon 1,Weapon 2,Weapon 3,Countermeasures,,,35,35,100,100,50,0.92,N/A,0.2,0.4,0.5,1.3
 Krayt Gunship,330000,Ordnance 1,Weapon 1,Weapon 2 (Turret),Weapon 3,Weapon 4,Countermeasures,,,30,30,85,85,50,0.92,N/A,0.2,0.35,0.375,1.3
 KSE Firespray,260000,Ordnance 1,Ordnance 2,Weapon 1,Weapon 2,Countermeasures,,,,35,35,100,100,50,0.9,N/A,0.2,0.4,0.4,1.6

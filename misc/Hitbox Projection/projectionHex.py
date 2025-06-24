@@ -182,13 +182,13 @@ def main():
     startTime = datetime.now()
 
     # /// Sim Configuration ///
-    boxes = [[7.25, 3.6, 12.75], [3.125, 3.6, 16.375], [3.125, 3.6, 16.375]]
-    offsets = [[0, 0, 0], [5.1875, 0.0, 7.4375], [-5.1875, 0.0, 7.4375]]
-    #boxes, offsets = coords2BoxOffset([[[3.625,2.05,3.15],[-3.625,-1.55,-9.6]],[[6.75,2.05,12.4],[3.625,-1.55,-3.975]],[[-3.625,2.05,12.4],[-6.75,-1.55,-3.975]]]) #use this function for converting from .lod box coordinates to this script's system
+    boxes = [[33.03,8.79,46.89]]
+    offsets = [[0, 0, 0]]
+    #boxes, offsets = coords2BoxOffset([[[4.60,9.65,21.81],[-4.60,-123.11,-21.81]],[[20.19,36.40,53.68],[-20.19,-26.70,-53.68]]]) #use this function for converting from .lod box coordinates to this script's system
     boxColors = ['#ff9900','#0000ff','#ff00ff','#00ff99']
     showGraphs = True #Tends to be a lot faster when you turn off the graphing.
-    precisionMultiplier = 1 #1 is default. Increasing precision raises time complexity significantly O(n^2)
-    n = 250 #Number of views is this number times 2
+    precisionMultiplier = 1 #1 is default. Increasing precision raises time complexity significantly ~O(n^2)
+    views = 1000
     # /// Sim Configuration ///
 
     maxDim = max([max(x) for x in boxes])
@@ -197,6 +197,7 @@ def main():
     areaList = []
 
     spherePoints = [] #generates a sphere made up of fibonacci spirals to provide roughly evenly-spaced points on its surface
+    n = int(views/2)
     for p in range(-n,n):
         phi = np.arcsin(2*p/(2*n+1)) + np.pi/2
         theta = (2*np.pi*p*1/1.61803398875) #golden ratio

@@ -62,7 +62,7 @@ class Process(multiprocessing.Process):
 ###Upload new version
 ###Update gist with new download link
 
-currentVersion = "2.A.15a"
+currentVersion = "2.A.15"
 
 buildTables(currentVersion)
 
@@ -85,23 +85,30 @@ if "Roboto" not in fontList:
     pyglet.font.add_file(str(os.path.abspath(os.path.join(os.path.dirname(__file__), 'Fonts/Roboto-Thin.ttf'))))
     pyglet.font.add_file(str(os.path.abspath(os.path.join(os.path.dirname(__file__), 'Fonts/Roboto-ThinItalic.ttf'))))
 
-headerFont = ("Roboto", 12, "bold")
-summaryFont = ("Roboto", 11, "bold")
-summaryFontStats = ("Roboto", 11)
-baseFont = ("Roboto", 10, "bold")
-baseFontStats = ("Roboto", 10, "bold")
-buttonFont = ("Roboto", 13, "bold")
+scaleFactor = 1
+
+if scaleFactor == 1:
+    fontFace = 'bold'
+else:
+    fontFace = ''
+
+headerFont = ("Roboto", int(12*scaleFactor), fontFace)
+summaryFont = ("Roboto", int(11*scaleFactor), fontFace)
+summaryFontStats = ("Roboto", int(11*scaleFactor))
+baseFont = ("Roboto", int(10*scaleFactor), fontFace)
+baseFontStats = ("Roboto", int(10*scaleFactor), fontFace)
+buttonFont = ("Roboto", int(13*scaleFactor), fontFace)
 fontPadding = 0
-elementPadding = 4
+elementPadding = int(4*scaleFactor)
 bgColor = '#202225'
 boxColor = '#313338'
 textColor = '#f3f4f5'
-compBoxWidth = 215
-rightPaneWidth = 250
-topRowHeight = 160
-row1Height = 210
-row2Height = 240
-row3Height = 240
+compBoxWidth = int(215 * scaleFactor)
+rightPaneWidth = int(250 * scaleFactor)
+topRowHeight = int(160 * scaleFactor)
+row1Height = int(210 * scaleFactor)
+row2Height = int(240 * scaleFactor)
+row3Height = int(240 * scaleFactor)
 
 theme_definition = {'BACKGROUND': boxColor,
                     'TEXT': textColor,
@@ -598,7 +605,7 @@ def updateMassStrings(chassisMass, window):
             percentMass = round(tryFloat(totalMass)/tryFloat(chassisMass)*100,1)
             massString = str(totalMass) + " of " + str(round(float(chassisMass),1)) + " (" + str(percentMass) + "%)"
             leftoverMass = str(round(float(chassisMass) - float(totalMass),1))
-            if percentMass > 100:
+            if tryFloat(totalMass)/tryFloat(chassisMass) > 1:
                 window['loadoutmass'].update(massString, text_color = "#dd0000")
             else:
                 window['loadoutmass'].update(massString, text_color = textColor)
@@ -2926,6 +2933,20 @@ def updateProfile(window):
                 per = np.floor((per*10) + 0.5) / 10
                 percents.append(per)
 
+        #Code to print throttle mod breakpoints in terms of throttle percent
+
+        # profileByPercent = [[str(int(span[i]*100))+'%', str(int(percents[i]*100))+'%'] for i in range(100)]
+        # breakpoints = []
+
+        # for i in range(1,len(profileByPercent)):
+        #     if profileByPercent[i][1] != profileByPercent [i-1][1]:
+        #         breakpoints.append(profileByPercent[i-1])
+
+        # breakpoints.append(['0%',str(int(minThrottle*100))+'%'])
+
+        # print([b for b in breakpoints])
+
+
         percents = [int(percents[i]*100) for i in range(0,len(percents)) if i%10 == 0]
 
         span = np.linspace(1,0,11)
@@ -3457,38 +3478,23 @@ def main():
             [sg.Combo(values = [], size=(28,10), readonly=True, key='slot7selection', enable_events=True, font=baseFont, disabled=True, background_color=bgColor)],
         ]
 
-        slot8Text = [
-            [sg.Push(),sg.Text("", font=baseFont, p=fontPadding, key='slot8stat1text')],
-            [sg.Push(),sg.Text("", font=baseFont, p=fontPadding, key='slot8stat2text')],
-            [sg.Push(),sg.Text("", font=baseFont, p=fontPadding, key='slot8stat3text')],
-            [sg.Push(),sg.Text("", font=baseFont, p=fontPadding, key='slot8stat4text')],
-            [sg.Push(),sg.Text("", font=baseFont, p=fontPadding, key='slot8stat5text')],
-            [sg.Push(),sg.Text("", font=baseFont, p=fontPadding, key='slot8stat6text')],
-            [sg.Push(),sg.Text("", font=baseFont, p=fontPadding, key='slot8stat7text')],
-            [sg.Push(),sg.Text("", font=baseFont, p=fontPadding, key='slot8stat8text')],
-        ]
+        slot8Text = []
+        slot8Stats = []
 
-        slot8Stats = [
-            [sg.Text("", key='slot8stat1', font=baseFontStats, s=10, p=fontPadding), sg.Push()],
-            [sg.Text("", key='slot8stat2', font=baseFontStats, s=10, p=fontPadding), sg.Push()],
-            [sg.Text("", key='slot8stat3', font=baseFontStats, s=10, p=fontPadding), sg.Push()],
-            [sg.Text("", key='slot8stat4', font=baseFontStats, s=10, p=fontPadding), sg.Push()],
-            [sg.Text("", key='slot8stat5', font=baseFontStats, s=10, p=fontPadding), sg.Push()],
-            [sg.Text("", key='slot8stat6', font=baseFontStats, s=10, p=fontPadding), sg.Push()],
-            [sg.Text("", key='slot8stat7', font=baseFontStats, s=10, p=fontPadding), sg.Push()],
-            [sg.Text("", key='slot8stat8', font=baseFontStats, s=10, p=fontPadding), sg.Push()],
-        ]
+        for i in range(1,9):
+            slot8Text.append([sg.Push(),sg.Text("", key='slot8stat' + str(i) + 'text', font=baseFontStats, p=fontPadding)])
+            slot8Stats.append([sg.Text("", key='slot8stat' + str(i), font=baseFontStats, p=fontPadding), sg.Push()])
 
         powerBoxLayoutSlot8 = [
-            [sg.Text("⚡", background_color=boxColor, p=0, key='slot8powerboxcolor', text_color=boxColor)]
+            [sg.Text("⚡", background_color=boxColor, p=0, font=int(10*scaleFactor), key='slot8powerboxcolor', text_color=boxColor)]
         ]
 
         slot8Box = [
-            [sg.Frame('',[[]],border_width=0,s=(20,20),p=5),sg.Frame('',[[sg.Push(),sg.Text("", font=headerFont, key='slot8header'),sg.Push()]],border_width=0,p=0,s=(compBoxWidth-65,28)),sg.Frame('',powerBoxLayoutSlot8,border_width=0,background_color=boxColor, s=(20,20), p=5, key='slot8powerboxframecolor')],
-            [sg.Frame('',slot8Text,border_width=0,p=0,s=(compBoxWidth/2,row3Height-85)), sg.Push(),sg.Frame('',slot8Stats,border_width=0,p=0,s=(compBoxWidth/2-5,row3Height-85))],
+            [sg.Frame('',[[]],border_width=0,s=(int(20*scaleFactor),int(20*scaleFactor)),p=int(5*scaleFactor)),sg.Frame('',[[sg.Push(),sg.Text("", font=headerFont, key='slot8header'),sg.Push()]],border_width=0,p=0,s=(int(compBoxWidth-65*scaleFactor),int(28*scaleFactor))),sg.Frame('',powerBoxLayoutSlot8,border_width=0,background_color=boxColor, s=(int(20*scaleFactor),int(20*scaleFactor)), p=int(5*scaleFactor), key='slot8powerboxframecolor')],
+            [sg.Frame('',slot8Text,border_width=0,p=0,s=(int(compBoxWidth/2),int(row3Height-85*scaleFactor))), sg.Push(),sg.Frame('',slot8Stats,border_width=0,p=0,s=(int(compBoxWidth/2-5*scaleFactor),int(row3Height-85*scaleFactor)))],
             [sg.VPush()],
-            [sg.Combo(values = [], size=(28,10), readonly=True, key='slot8packselection', enable_events=True, font=baseFont, visible=False, background_color=bgColor)],
-            [sg.Combo(values = [], size=(28,10), readonly=True, key='slot8selection', enable_events=True, font=baseFont, disabled=True, background_color=bgColor)],
+            [sg.Combo(values = [], size=(int(28*scaleFactor),int(10*scaleFactor)), readonly=True, key='slot8packselection', enable_events=True, font=baseFont, visible=False, background_color=bgColor)],
+            [sg.Combo(values = [], size=(int(28*scaleFactor),int(10*scaleFactor)), readonly=True, key='slot8selection', enable_events=True, font=baseFont, disabled=True, background_color=bgColor)],
         ]
 
         loadoutCol1 = [
@@ -3545,7 +3551,7 @@ def main():
 
         chassisBox = [
             [sg.Push(), sg.Text("Loadout Details", font=headerFont), sg.Push()],
-            [sg.Frame('', chassisBoxLeft,border_width=0,p=elementPadding,s=(211,topRowHeight)), sg.Frame('', chassisBoxRight,border_width=0,p=elementPadding,s=(211,topRowHeight))]
+            [sg.Frame('', chassisBoxLeft,border_width=0,p=elementPadding,s=(int(211*scaleFactor),topRowHeight)), sg.Frame('', chassisBoxRight,border_width=0,p=elementPadding,s=(int(211*scaleFactor),topRowHeight))]
         ]
 
         overloadsTextColumn = [
@@ -3556,10 +3562,10 @@ def main():
         ]
 
         overloadsDropdowns = [
-            [sg.Combo([4, 3, 2, 1, "None"], default_value="None", s=(5,5), readonly=True, key='reactoroverloadlevel', enable_events=True, font=baseFont, disabled=True, background_color=bgColor, p=1), sg.Push()],
-            [sg.Combo([4, 3, 2, 1, "None"], default_value="None", s=(5,5), readonly=True, key='engineoverloadlevel', enable_events=True, font=baseFont, disabled=True, background_color=bgColor, p=1), sg.Push()],
-            [sg.Combo([4, 3, 2, 1, "None"], default_value="None", s=(5,5), readonly=True, key='capacitoroverchargelevel', enable_events=True, font=baseFont, disabled=True, background_color=bgColor, p=1), sg.Push()],
-            [sg.Combo([4, 3, 2, 1, "None"], default_value="None", s=(5,5), readonly=True, key='weaponoverloadlevel', enable_events=True, font=baseFont, disabled=True, background_color=bgColor, p=1), sg.Push()],
+            [sg.Combo([4, 3, 2, 1, "None"], default_value="None", s=(int(5*scaleFactor),int(5*scaleFactor)), readonly=True, key='reactoroverloadlevel', enable_events=True, font=baseFont, disabled=True, background_color=bgColor, p=1), sg.Push()],
+            [sg.Combo([4, 3, 2, 1, "None"], default_value="None", s=(int(5*scaleFactor),int(5*scaleFactor)), readonly=True, key='engineoverloadlevel', enable_events=True, font=baseFont, disabled=True, background_color=bgColor, p=1), sg.Push()],
+            [sg.Combo([4, 3, 2, 1, "None"], default_value="None", s=(int(5*scaleFactor),int(5*scaleFactor)), readonly=True, key='capacitoroverchargelevel', enable_events=True, font=baseFont, disabled=True, background_color=bgColor, p=1), sg.Push()],
+            [sg.Combo([4, 3, 2, 1, "None"], default_value="None", s=(int(5*scaleFactor),int(5*scaleFactor)), readonly=True, key='weaponoverloadlevel', enable_events=True, font=baseFont, disabled=True, background_color=bgColor, p=1), sg.Push()],
         ]
 
         overloadDescriptions1 = [
@@ -3595,7 +3601,7 @@ def main():
         ]
 
         adjSubframeMid = [
-            [sg.Combo(["Front - Extreme", "Front - Heavy", "Front - Moderate", "Front - Light", "None", "Rear - Light", "Rear - Moderate", "Rear - Heavy", "Rear - Extreme"], default_value="None", s=(14,9), readonly=True, key='shieldadjustsetting', enable_events=True, font=baseFont, disabled=True, background_color=bgColor, p=fontPadding), sg.Push()]
+            [sg.Combo(["Front - Extreme", "Front - Heavy", "Front - Moderate", "Front - Light", "None", "Rear - Light", "Rear - Moderate", "Rear - Heavy", "Rear - Extreme"], default_value="None", s=(int(14*scaleFactor),int(9*scaleFactor)), readonly=True, key='shieldadjustsetting', enable_events=True, font=baseFont, disabled=True, background_color=bgColor, p=fontPadding), sg.Push()]
         ]
 
         adjSubframeRight1 = [
@@ -3616,8 +3622,21 @@ def main():
 
         overloadsFrame = [
             [sg.Push(), sg.Text("Flight Computer", font=headerFont),sg.Push()],
-            [sg.Frame('',overloadsTextColumn, border_width=0, p=elementPadding, s=(150,topRowHeight-75)), sg.Frame('',overloadsDropdowns, border_width=0, p=0,s=(60,topRowHeight-75)), sg.Frame('',overloadDescriptions1, border_width=0, p=0,s=(75,topRowHeight-75)), sg.Frame('',overloadDescriptions2, border_width=0, p=0,s=(35,topRowHeight-75)), sg.Frame('',overloadDescriptions3, border_width=0, p=0,s=(70,topRowHeight-75)), sg.Frame('',overloadDescriptions4, border_width=0, p=0,s=(35,topRowHeight-75))],
-            [sg.Frame('',adjSubframeLeft,border_width=0,p=elementPadding,s=(87,30)),sg.Frame('',adjSubframeMid,border_width=0,p=0,s=(123,30)),sg.Frame('',adjSubframeRight1,border_width=0,p=0,s=(75,30)),sg.Frame('',adjSubframeRight2,border_width=0,p=0,s=(35,30)),sg.Frame('',adjSubframeRight3,border_width=0,p=0,s=(70,30)),sg.Frame('',adjSubframeRight4,border_width=0,p=0,s=(35,30))]
+            [
+                sg.Frame('',overloadsTextColumn, border_width=0, p=elementPadding, s=(int(150*scaleFactor),int(topRowHeight-75*scaleFactor))), 
+                sg.Frame('',overloadsDropdowns, border_width=0, p=0,s=(int(60*scaleFactor),int(topRowHeight-75*scaleFactor))), 
+                sg.Frame('',overloadDescriptions1, border_width=0, p=0,s=(int(75*scaleFactor),int(topRowHeight-75*scaleFactor))), 
+                sg.Frame('',overloadDescriptions2, border_width=0, p=0,s=(int(35*scaleFactor),int(topRowHeight-75*scaleFactor))), 
+                sg.Frame('',overloadDescriptions3, border_width=0, p=0,s=(int(70*scaleFactor),int(topRowHeight-75*scaleFactor))), 
+                sg.Frame('',overloadDescriptions4, border_width=0, p=0,s=(int(35*scaleFactor),int(topRowHeight-75*scaleFactor))),
+            ],
+            [
+                sg.Frame('',adjSubframeLeft,border_width=0,p=elementPadding,s=(int(87*scaleFactor),int(30*scaleFactor))),
+                sg.Frame('',adjSubframeMid,border_width=0,p=0,s=(int(123*scaleFactor),int(30*scaleFactor))),
+                sg.Frame('',adjSubframeRight1,border_width=0,p=0,s=(int(75*scaleFactor),int(30*scaleFactor))),
+                sg.Frame('',adjSubframeRight2,border_width=0,p=0,s=(int(35*scaleFactor),int(30*scaleFactor))),
+                sg.Frame('',adjSubframeRight3,border_width=0,p=0,s=(int(70*scaleFactor),int(30*scaleFactor))),
+                sg.Frame('',adjSubframeRight4,border_width=0,p=0,s=(int(35*scaleFactor),int(30*scaleFactor)))]
         ]
 
         capSummaryLeft = [
@@ -3640,7 +3659,7 @@ def main():
 
         capSummaryBox = [
             [sg.Push(),sg.Text("Capacitor Summary", font=headerFont),sg.Push()],
-            [sg.Frame('',capSummaryLeft,border_width=0,p=elementPadding,s=(compBoxWidth/2+12,topRowHeight)),sg.Frame('',capSummaryRight,border_width=0,p=elementPadding,s=(compBoxWidth/2-28,topRowHeight))],
+            [sg.Frame('',capSummaryLeft,border_width=0,p=elementPadding,s=(int(compBoxWidth/2+12),topRowHeight)),sg.Frame('',capSummaryRight,border_width=0,p=elementPadding,s=(int(compBoxWidth/2-28),topRowHeight))],
         ]
 
         weaponSummaryBoxLeft = [
@@ -3688,7 +3707,7 @@ def main():
 
         weaponSummaryBox = [
             [sg.Frame('',weaponSummaryTitleFrame,border_width=0,p=elementPadding,s=(rightPaneWidth,25))],
-            [sg.Frame('',weaponSummaryBoxLeft,border_width=0,p=elementPadding,s=(rightPaneWidth/2-12,200)), sg.Frame('',weaponSummaryBoxCenter,border_width=0,p=(0,4),s=(rightPaneWidth/5+8,200)),sg.Frame('',weaponSummaryBoxRight,border_width=0,p=(0,4),s=(rightPaneWidth/5+8,200)), sg.Frame('',[[]],border_width=0,p=0,s=(rightPaneWidth/10-12,200))],
+            [sg.Frame('',weaponSummaryBoxLeft,border_width=0,p=elementPadding,s=(int(rightPaneWidth/2-12*scaleFactor),int(200*scaleFactor))), sg.Frame('',weaponSummaryBoxCenter,border_width=0,p=(0,elementPadding),s=(int(rightPaneWidth/5+8*scaleFactor),int(200*scaleFactor))),sg.Frame('',weaponSummaryBoxRight,border_width=0,p=(0,4),s=(int(rightPaneWidth/5+8*scaleFactor),int(200*scaleFactor))), sg.Frame('',[[]],border_width=0,p=0,s=(int(rightPaneWidth/10-12*scaleFactor),int(200*scaleFactor)))],
         ]
 
         propulsionSummaryLeft = [
@@ -3715,44 +3734,26 @@ def main():
 
         propulsionSummaryBox = [
             [sg.Push(),sg.Text("Propulsion Summary", font=headerFont),sg.Push()],
-            [sg.Frame('',propulsionSummaryLeft, border_width=0, p=elementPadding, s=(rightPaneWidth/2-12,170)),sg.Frame('',propulsionSummaryRight, border_width=0, p=elementPadding, s=(rightPaneWidth/2-4,170))],
+            [sg.Frame('',propulsionSummaryLeft, border_width=0, p=elementPadding, s=(rightPaneWidth/2-int(12*scaleFactor),int(170*scaleFactor))),sg.Frame('',propulsionSummaryRight, border_width=0, p=elementPadding, s=(rightPaneWidth/2-int(4*scaleFactor),int(170*scaleFactor)))],
         ]
 
         profilePercentCol = [
             [sg.Push(),sg.Text("",font=baseFont,p=1, key='profilepercentheader'),sg.Push()],
-            [sg.Frame('',[[sg.Text("",font=baseFont,p=fontPadding,key='text0')]],border_width=0,p=1,s=(80,20),key='textframe0', element_justification='center')],
-            [sg.Frame('',[[sg.Text("",font=baseFont,p=fontPadding,key='text10')]],border_width=0,p=1,s=(80,20),key='textframe10', element_justification='center')],
-            [sg.Frame('',[[sg.Text("",font=baseFont,p=fontPadding,key='text20')]],border_width=0,p=1,s=(80,20),key='textframe20', element_justification='center')],
-            [sg.Frame('',[[sg.Text("",font=baseFont,p=fontPadding,key='text30')]],border_width=0,p=1,s=(80,20),key='textframe30', element_justification='center')],
-            [sg.Frame('',[[sg.Text("",font=baseFont,p=fontPadding,key='text40')]],border_width=0,p=1,s=(80,20),key='textframe40', element_justification='center')],
-            [sg.Frame('',[[sg.Text("",font=baseFont,p=fontPadding,key='text50')]],border_width=0,p=1,s=(80,20),key='textframe50', element_justification='center')],
-            [sg.Frame('',[[sg.Text("",font=baseFont,p=fontPadding,key='text60')]],border_width=0,p=1,s=(80,20),key='textframe60', element_justification='center')],
-            [sg.Frame('',[[sg.Text("",font=baseFont,p=fontPadding,key='text70')]],border_width=0,p=1,s=(80,20),key='textframe70', element_justification='center')],
-            [sg.Frame('',[[sg.Text("",font=baseFont,p=fontPadding,key='text80')]],border_width=0,p=1,s=(80,20),key='textframe80', element_justification='center')],
-            [sg.Frame('',[[sg.Text("",font=baseFont,p=fontPadding,key='text90')]],border_width=0,p=1,s=(80,20),key='textframe90', element_justification='center')],
-            [sg.Frame('',[[sg.Text("",font=baseFont,p=fontPadding,key='text100')]],border_width=0,p=1,s=(80,20),key='textframe100', element_justification='center')],
         ]
 
         profilePYRCol = [
             [sg.Push(),sg.Text("",font=baseFont,p=1, key='profilepyrheader'),sg.Push()],
-            [sg.Frame('',[[sg.Text("",font=baseFont,p=fontPadding,key='pyr0')]],border_width=0,p=1,s=(80,20),key='frame0', element_justification='center')],
-            [sg.Frame('',[[sg.Text("",font=baseFont,p=fontPadding,key='pyr10')]],border_width=0,p=1,s=(80,20),key='frame10', element_justification='center')],
-            [sg.Frame('',[[sg.Text("",font=baseFont,p=fontPadding,key='pyr20')]],border_width=0,p=1,s=(80,20),key='frame20', element_justification='center')],
-            [sg.Frame('',[[sg.Text("",font=baseFont,p=fontPadding,key='pyr30')]],border_width=0,p=1,s=(80,20),key='frame30', element_justification='center')],
-            [sg.Frame('',[[sg.Text("",font=baseFont,p=fontPadding,key='pyr40')]],border_width=0,p=1,s=(80,20),key='frame40', element_justification='center')],
-            [sg.Frame('',[[sg.Text("",font=baseFont,p=fontPadding,key='pyr50')]],border_width=0,p=1,s=(80,20),key='frame50', element_justification='center')],
-            [sg.Frame('',[[sg.Text("",font=baseFont,p=fontPadding,key='pyr60')]],border_width=0,p=1,s=(80,20),key='frame60', element_justification='center')],
-            [sg.Frame('',[[sg.Text("",font=baseFont,p=fontPadding,key='pyr70')]],border_width=0,p=1,s=(80,20),key='frame70', element_justification='center')],
-            [sg.Frame('',[[sg.Text("",font=baseFont,p=fontPadding,key='pyr80')]],border_width=0,p=1,s=(80,20),key='frame80', element_justification='center')],
-            [sg.Frame('',[[sg.Text("",font=baseFont,p=fontPadding,key='pyr90')]],border_width=0,p=1,s=(80,20),key='frame90', element_justification='center')],
-            [sg.Frame('',[[sg.Text("",font=baseFont,p=fontPadding,key='pyr100')]],border_width=0,p=1,s=(80,20),key='frame100', element_justification='center')],
         ]
+
+        for i in range(0,11):
+            profilePercentCol.append([sg.Frame('',[[sg.Text("",font=baseFont,p=fontPadding,key='text'+str(i*10))]],border_width=0,p=1,s=(int(80*scaleFactor),int(20*scaleFactor)),key='textframe'+str(i*10), element_justification='center')])        
+            profilePYRCol.append([sg.Frame('',[[sg.Text("",font=baseFont,p=fontPadding,key='pyr'+str(i*10))]],border_width=0,p=1,s=(int(80*scaleFactor),int(20*scaleFactor)),key='frame'+str(i*10), element_justification='center')])
 
         profileFrame = [
             [sg.Push(),sg.Text("Throttle Profile",font=headerFont,p=elementPadding),sg.Push()],
             [sg.Push(),sg.Text("",font=baseFont,p=fontPadding, key='throttlemods'),sg.Push()],
             [sg.VPush()],
-            [sg.Push(),sg.Frame('',profilePercentCol,border_width=0,p=0, s=(rightPaneWidth/3,300)),sg.Frame('',profilePYRCol,border_width=0,p=0,s=(rightPaneWidth/3,300)),sg.Push()],
+            [sg.Push(),sg.Frame('',profilePercentCol,border_width=0,p=0, s=(int(rightPaneWidth/3),int(300*scaleFactor))),sg.Frame('',profilePYRCol,border_width=0,p=0,s=(int(rightPaneWidth/3),int(300*scaleFactor))),sg.Push()],
             [sg.VPush()]
         ]
 
@@ -3766,14 +3767,14 @@ def main():
         ]
 
         rightPane = [
-            [sg.Frame('', weaponSummaryBox, border_width=0, p=elementPadding, s=(rightPaneWidth,235))],
-            [sg.Frame('', propulsionSummaryBox, border_width=0, p=elementPadding, s=(rightPaneWidth,195))],
-            [sg.Frame('', profileFrame, border_width=0, p=elementPadding, s=(rightPaneWidth, 333))],
-            [sg.Frame('', signatureFrame, border_width=0, p=elementPadding, s=(rightPaneWidth,87))]
+            [sg.Frame('', weaponSummaryBox, border_width=0, p=elementPadding, s=(rightPaneWidth,int(235*scaleFactor)))],
+            [sg.Frame('', propulsionSummaryBox, border_width=0, p=elementPadding, s=(rightPaneWidth,int(195*scaleFactor)))],
+            [sg.Frame('', profileFrame, border_width=0, p=elementPadding, s=(rightPaneWidth, int(333*scaleFactor)))],
+            [sg.Frame('', signatureFrame, border_width=0, p=elementPadding, s=(rightPaneWidth,int(87*scaleFactor)))]
         ]
 
         leftPane = [
-            [sg.Frame('', chassisBox, border_width=0, p=elementPadding, s=(438, topRowHeight)),sg.Frame('', overloadsFrame, border_width=0, p=elementPadding, s=(438,topRowHeight)),sg.Frame('', capSummaryBox, border_width=0, p=elementPadding, s=(compBoxWidth,topRowHeight)),],
+            [sg.Frame('', chassisBox, border_width=0, p=elementPadding, s=(int(438*scaleFactor), topRowHeight)),sg.Frame('', overloadsFrame, border_width=0, p=elementPadding, s=(int(438*scaleFactor),topRowHeight)),sg.Frame('', capSummaryBox, border_width=0, p=elementPadding, s=(compBoxWidth,topRowHeight)),],
             [sg.Column(loadoutBank, background_color=bgColor, expand_y=True, p=0)],
         ]
         
@@ -3782,7 +3783,7 @@ def main():
             [sg.vtop(sg.Column(leftPane, background_color=bgColor, p=0)),sg.vtop(sg.Column(rightPane, background_color=bgColor, p=0))],
         ]
 
-        window = sg.Window("Seraph's Loadout Tool v2.0 Alpha",layout, finalize=True, background_color=bgColor, icon=os.path.abspath(os.path.join(os.path.dirname(__file__), 'SLT_Icon.ico')), margins=(10, 10), enable_close_attempted_event=True)
+        window = sg.Window("Seraph's Loadout Tool v2.0 Alpha",layout, finalize=True, background_color=bgColor, icon=os.path.abspath(os.path.join(os.path.dirname(__file__), 'SLT_Icon.ico')), margins=(elementPadding, elementPadding), enable_close_attempted_event=True)
         move_center(window)
 
         chassis = ''

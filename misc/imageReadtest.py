@@ -1,4 +1,3 @@
-import FreeSimpleGUI as sg
 import numpy as np
 import pytesseract
 import win32clipboard
@@ -90,8 +89,6 @@ def processImage(lineParse):
     time3 = datetime.now()
     print('scale and resample',time3-time2)
 
-
-
     pytesseract.pytesseract.tesseract_cmd= 'C:\\Program Files (x86)\\Tesseract-OCR\\distrotest\\tesseract.exe'
 
     tex = []
@@ -104,13 +101,14 @@ def processImage(lineParse):
 
         for line in lines:
             tex.append(pytesseract.image_to_string(line,lang='eng',config='--psm 7').replace('\n',''))
-        #tex = tex.replace('$','8').replace('¥','V').replace('\n\n','\n')
+        tex = [x.replace('$','8').replace('¥','V').replace('\n\n','\n') for x in tex]
     else:
         tex = pytesseract.image_to_string(image,lang='eng')
         time4 = time3
 
     time5 = datetime.now()
     print('run tesseract',time5-time4)
+    image.show()
     return(tex)
 
-print(processImage(True))
+[print(x) for x in processImage(True)]

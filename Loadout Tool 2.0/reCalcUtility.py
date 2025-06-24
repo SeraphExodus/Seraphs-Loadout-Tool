@@ -2152,7 +2152,7 @@ def updateConfigPane(rarity, threshold, reCalcWindow):
 
     return thresholdLowTight, thresholdHighTight
 
-def generateMatchBands(thresholdLow, thresholdHigh, reCalcWindow):
+def generateMatchBands(thresholdLow, thresholdHigh, matches, postRE, reCalcWindow):
     event, values = reCalcWindow.read(timeout=0)
     compType = values['componentselect']
     level = values['relevelselect']
@@ -2229,11 +2229,11 @@ def generateMatchBands(thresholdLow, thresholdHigh, reCalcWindow):
                     if statsHigh[i] not in ['∞', '0']:
                         statsHighPost[i] = "{:.3f}".format(min(round(round(statsHigh[i],2)*(1 + tails[i]*reMult),2),round(statsHigh[i]*(1 + tails[i]*reMult),2)))
                         statsHigh[i] = "{:.3f}".format(bestCaseVsRefireMax(statsHigh[i],compStats[i],reMult))
-                        matchStringRaw[i] = statsLow[i] + ' - ' + statsHigh[i]
-                        matchStringPost[i] = statsLowPost[i] + ' - ' + statsHighPost[i]
+                        matchStringRaw[i] = statsLow[i] + ' - ' + statsHigh[i] + ' (' + str(matches[i]) + ')'
+                        matchStringPost[i] = statsLowPost[i] + ' - ' + statsHighPost[i] + ' (' + str(postRE[i]) + ')'
                     else:
-                        matchStringRaw[i] = statsLow[i] + ' or better'
-                        matchStringPost[i] = statsLowPost[i] + ' or better'
+                        matchStringRaw[i] = statsLow[i] + ' or better' + ' (' + str(matches[i]) + ')'
+                        matchStringPost[i] = statsLowPost[i] + ' or better' + ' (' + str(postRE[i]) + ')'
                     
                 except:
                     pass
@@ -2244,11 +2244,11 @@ def generateMatchBands(thresholdLow, thresholdHigh, reCalcWindow):
                     if statsHigh[i] not in ['∞', '0']:
                         statsHighPost[i] = "{:.3f}".format(max(round(round(statsHigh[i],2)*(1 + tails[i]*reMult),2),round(statsHigh[i]*(1 + tails[i]*reMult),2)))
                         statsHigh[i] = "{:.3f}".format(bestCaseVsRefireMax(statsHigh[i],compStats[i],reMult))
-                        matchStringRaw[i] = statsLow[i] + ' - ' + statsHigh[i]
-                        matchStringPost[i] = statsLowPost[i] + ' - ' + statsHighPost[i]
+                        matchStringRaw[i] = statsLow[i] + ' - ' + statsHigh[i] + ' (' + str(matches[i]) + ')'
+                        matchStringPost[i] = statsLowPost[i] + ' - ' + statsHighPost[i] + ' (' + str(postRE[i]) + ')'
                     else:
-                        matchStringRaw[i] = statsLow[i]  + ' or better'
-                        matchStringPost[i] = statsLowPost[i]  + ' or better'
+                        matchStringRaw[i] = statsLow[i]  + ' or better' + ' (' + str(matches[i]) + ')'
+                        matchStringPost[i] = statsLowPost[i]  + ' or better' + ' (' + str(postRE[i]) + ')'
                 except:
                     pass
 
@@ -2259,22 +2259,22 @@ def generateMatchBands(thresholdLow, thresholdHigh, reCalcWindow):
                 if statsHigh[i] not in ['∞', '0']:
                     statsHighPost[i] = "{:.2f}".format(round(statsHigh[i]*(1 + tails[i]*reMult),2))
                     statsHigh[i] = "{:.2f}".format(round(statsHigh[i],2))
-                    matchStringRaw[i] = statsLow[i] + ' - ' + statsHigh[i]
-                    matchStringPost[i] = statsLowPost[i] + ' - ' + statsHighPost[i]
+                    matchStringRaw[i] = statsLow[i] + ' - ' + statsHigh[i] + ' (' + str(matches[i]) + ')'
+                    matchStringPost[i] = statsLowPost[i] + ' - ' + statsHighPost[i] + ' (' + str(postRE[i]) + ')'
                 else:
-                    matchStringRaw[i] = statsLow[i]  + ' or better'
-                    matchStringPost[i] = statsLowPost[i]  + ' or better'
+                    matchStringRaw[i] = statsLow[i]  + ' or better' + ' (' + str(matches[i]) + ')'
+                    matchStringPost[i] = statsLowPost[i]  + ' or better' + ' (' + str(postRE[i]) + ')'
             else:
                 statsLowPost[i] = "{:.1f}".format(round(statsLow[i]*(1 + tails[i]*reMult),1))
                 statsLow[i] = "{:.1f}".format(round(statsLow[i],1))
                 if statsHigh[i] not in ['∞', '0']:
                     statsHighPost[i] = "{:.1f}".format(round(statsHigh[i]*(1 + tails[i]*reMult),1))
                     statsHigh[i] = "{:.1f}".format(round(statsHigh[i],1))
-                    matchStringRaw[i] = statsLow[i] + ' - ' + statsHigh[i]
-                    matchStringPost[i] = statsLowPost[i] + ' - ' + statsHighPost[i]
+                    matchStringRaw[i] = statsLow[i] + ' - ' + statsHigh[i] + ' (' + str(matches[i]) + ')'
+                    matchStringPost[i] = statsLowPost[i] + ' - ' + statsHighPost[i] + ' (' + str(postRE[i]) + ')'
                 else:
-                    matchStringRaw[i] = statsLow[i]  + ' or better'
-                    matchStringPost[i] = statsLowPost[i]  + ' or better'
+                    matchStringRaw[i] = statsLow[i]  + ' or better' + ' (' + str(matches[i]) + ')'
+                    matchStringPost[i] = statsLowPost[i]  + ' or better' + ' (' + str(postRE[i]) + ')'
 
     for i in range(0,len(statsLow)):
         if isReward(statsLow[i],compType,level,compStats[i])[0]:
@@ -2351,8 +2351,8 @@ def reCalc():
         statsText2.append([sg.Push(),sg.Text("",key='stattext2' + str(i),font=baseFont,s=15,justification='right',p=(0,2))])
         statsOutputs.append([sg.Text("",s=8,key='statoutput' + str(i),p=(0,2),font=baseFont)])
         matchesText.append([sg.Push(),sg.Text("",key='matchtext' + str(i),font=baseFont,s=15,justification='right',p=(0,2))])
-        matchesOutputs.append([sg.Push(),sg.Text("",s=16,key='matchoutput' + str(i),p=(0,2),font=baseFont),sg.Push()])
-        matchesPost.append([sg.Push(),sg.Text("",s=16,key='matchpost' + str(i),p=(0,2),font=baseFont),sg.Push()])
+        matchesOutputs.append([sg.Push(),sg.Text("",s=24,key='matchoutput' + str(i),p=(0,2),font=baseFont),sg.Push()])
+        matchesPost.append([sg.Push(),sg.Text("",s=24,key='matchpost' + str(i),p=(0,2),font=baseFont),sg.Push()])
 
     inputFrame = [
         [sg.Text("Input Raw Component Stats",key='statsheader', font=baseFont,p=(0,2))],
@@ -2397,7 +2397,7 @@ def reCalc():
 
     matchesFrame = [
         [sg.Text("Matching Stats",font=baseFont,key='matchheader',p=(0,2))],
-        [sg.Push(),sg.vtop(sg.Frame('',matchesText,border_width=0,p=elementPadding)),sg.vtop(sg.Frame('',matchesOutputs,border_width=0,p=elementPadding,s=(120,210))),sg.vtop(sg.Frame('',matchesPost,border_width=0,p=elementPadding,s=(120,210))),sg.Push()]
+        [sg.Push(),sg.vtop(sg.Frame('',matchesText,border_width=0,p=elementPadding)),sg.vtop(sg.Frame('',matchesOutputs,border_width=0,p=elementPadding,s=(170,210))),sg.vtop(sg.Frame('',matchesPost,border_width=0,p=elementPadding,s=(170,210))),sg.Push()]
     ]
 
     IOFrame = [
@@ -2409,7 +2409,7 @@ def reCalc():
     matchingFrame = [
         [sg.Push(),sg.Frame('',matchingConfigFrame,border_width=0,p=elementPadding,s=(280,100)),sg.Push()],
         [sg.VPush()],
-        [sg.Push(),sg.Frame('',matchesFrame,border_width=0,p=0,s=(415,250),element_justification='center'),sg.Push()]
+        [sg.Push(),sg.Frame('',matchesFrame,border_width=0,p=0,s=(515,250),element_justification='center'),sg.Push()]
     ]  
 
     compdb = sqlite3.connect("file:Data\\savedata.db?mode=rw", uri=True)
@@ -2433,7 +2433,7 @@ def reCalc():
         [sg.Push(),sg.Frame('',IOFrame,border_width=0,p=0,expand_y=True),sg.Frame('',matchingFrame,border_width=0,p=0,expand_y=True)]
     ]
 
-    reCalcWindow = sg.Window("Reverse Engineering Calculator",Layout,modal=False,icon=os.path.abspath(os.path.join(os.path.dirname(__file__), 'SLT_Icon.ico')),size=(1200,365),finalize=True)
+    reCalcWindow = sg.Window("Reverse Engineering Calculator",Layout,modal=False,icon=os.path.abspath(os.path.join(os.path.dirname(__file__), 'SLT_Icon.ico')),size=(1300,365),finalize=True)
 
     reCalcWindow.bind('<Control-s>','Save Project')
     reCalcWindow.bind('<Control-o>','Open Project')
@@ -2583,7 +2583,7 @@ def reCalc():
                     logDelta = formatLogDelta(logDelta)
                     unicorns, unicornThreshold = isUnicorn(rarityList, reCalcWindow)
                     thresholdLow, thresholdHigh = updateConfigPane(rarity,unicornThreshold,reCalcWindow)
-                    matchRaw, matchPost = generateMatchBands(thresholdLow,thresholdHigh,reCalcWindow)
+                    matchRaw, matchPost = generateMatchBands(thresholdLow,thresholdHigh,matches,postRE,reCalcWindow)
                     for i in range(0,9):
                         try:
                             reCalcWindow['statrarity' + str(i)].update(rarityList1inx[i])
@@ -2716,7 +2716,7 @@ def reCalc():
                     logDelta = formatLogDelta(logDelta)
                     unicorns, unicornThreshold = isUnicorn(rarityList, reCalcWindow)
                     thresholdLow, thresholdHigh = updateConfigPane(rarity,unicornThreshold,reCalcWindow)
-                    matchRaw, matchPost = generateMatchBands(thresholdLow,thresholdHigh,reCalcWindow)
+                    matchRaw, matchPost = generateMatchBands(thresholdLow,thresholdHigh,matches,postRE,reCalcWindow)
                     for i in range(0,9):
                         try:
                             reCalcWindow['statrarity' + str(i)].update(rarityList1inx[i])
@@ -2761,7 +2761,7 @@ def reCalc():
                 logDelta = formatLogDelta(logDelta)
                 unicorns, unicornThreshold = isUnicorn(rarityList, reCalcWindow)
                 thresholdLow, thresholdHigh = updateConfigPane(rarity,unicornThreshold,reCalcWindow)
-                matchRaw, matchPost = generateMatchBands(thresholdLow,thresholdHigh,reCalcWindow)
+                matchRaw, matchPost = generateMatchBands(thresholdLow,thresholdHigh,matches,postRE,reCalcWindow)
                 for i in range(0,9):
                     try:
                         reCalcWindow['statrarity' + str(i)].update(rarityList1inx[i])
@@ -2804,4 +2804,4 @@ def reCalc():
     db.close()
     return export
 
-#reCalc()
+#reCalc() #uncomment to run from here.
