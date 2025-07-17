@@ -182,11 +182,11 @@ def main():
     startTime = datetime.now()
 
     # /// Sim Configuration ///
-    boxes = [[33.03,8.79,46.89]]
+    boxes = [[32,10,42]]
     offsets = [[0, 0, 0]]
-    #boxes, offsets = coords2BoxOffset([[[4.60,9.65,21.81],[-4.60,-123.11,-21.81]],[[20.19,36.40,53.68],[-20.19,-26.70,-53.68]]]) #use this function for converting from .lod box coordinates to this script's system
+    boxes, offsets = coords2BoxOffset([[[22.5204887,4.69140148,27.09134],[-22.5204887,-3.22165513,-27.609]],[[7.577867,9.669678,49.7918968],[-7.577867,-4.34824848,-28.45220]],[[0.81808126,33.38945,-19.2523],[-0.81808126,-25.6273746,-35.9919357]]]) #use this function for converting from .lod box coordinates to this script's system
     boxColors = ['#ff9900','#0000ff','#ff00ff','#00ff99']
-    showGraphs = True #Tends to be a lot faster when you turn off the graphing.
+    showGraphs = False #Tends to be a lot faster when you turn off the graphing.
     precisionMultiplier = 1 #1 is default. Increasing precision raises time complexity significantly ~O(n^2)
     views = 1000
     # /// Sim Configuration ///
@@ -375,5 +375,14 @@ def main():
     print('Simulation Time: ' + str(round(simLength.total_seconds(),3)) + 's')
     if showGraphs:
         plt.show()
+    plt.close()
+
+    fig = plt.figure(figsize=(12,12))
+    ax = fig.add_subplot(1,1,1)
+    ax.cla()
+    areaList = sorted(areaList)
+    x = range(len(areaList))
+    ax.scatter(x,areaList)
+    plt.show()
 
 main()

@@ -2,8 +2,6 @@ import FreeSimpleGUI as sg
 import matplotlib.pyplot as plt
 import numpy as np
 import os
-import PIL.Image
-import PIL.ImageDraw
 import pygame
 import pyglet
 import sqlite3
@@ -803,16 +801,16 @@ def main():
                 ax.quiver([pos[0] for pos in positionTrackQuiver],[pos[1] for pos in positionTrackQuiver],[pos[2] for pos in positionTrackQuiver],[vel[0] for vel in velocityTrack],[vel[1] for vel in velocityTrack],[vel[2] for vel in velocityTrack],length=aLength,color='green')
         time10 = time.time()
 
-        # if time5 > time4:
-        #     print('----------------')
-        #     print('Window Read: ', time2-time1)
-        #     print('Get User Inputs: ', time3-time2)
-        #     print('Process Booster Stuff: ', time4-time3)
-        #     print('Flight Simulation: ', time6-time5)
-        #     print('Point Cloud Rendering: ', time7-time6)
-        #     print('Draw UI: ', time8-time7)
-        #     print('Rotate 3D Plot: ', time9-time8)
-        #     print('Update 3D Plot: ',time10-time9)
+        if time5 > time4:
+            print('----------------')
+            print('Window Read: ', time2-time1)
+            print('Get User Inputs: ', time3-time2)
+            print('Process Booster Stuff: ', time4-time3)
+            print('Flight Simulation: ', time6-time5)
+            print('Point Cloud Rendering: ', time7-time6)
+            print('Draw UI: ', time8-time7)
+            print('Rotate 3D Plot: ', time9-time8)
+            print('Update 3D Plot: ',time10-time9)
             
         if infoEvents == 'Reset':
             throttle = 0

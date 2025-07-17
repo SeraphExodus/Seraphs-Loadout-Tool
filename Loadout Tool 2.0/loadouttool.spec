@@ -22,7 +22,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name="""Seraph's Loadout Tool Test Version 2.A.15a""",
+    name="""Seraph's Loadout Tool Test Version OVERRIDE DO NOT DISTRIBUTE""",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

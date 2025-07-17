@@ -26,6 +26,10 @@ from reCalcUtility import reCalc
 
 ### Extra code in order to enable multiprocessing support in pyinstaller ###
 
+versionOverride = False #Set true to omit version checking for test releases. Set false for any actual release.
+
+throttleProfileCaptureMode = False #Set to false for normal screencapping, true to only capture the throttle profile with wiki background color for updating wiki pages
+
 class _Popen(forking.Popen):
     def __init__(self, *args, **kw):
         if hasattr(sys, 'frozen'):
@@ -120,6 +124,13 @@ theme_definition = {'BACKGROUND': boxColor,
                     'BORDER': 1,
                     'SLIDER_DEPTH': 0,
                     'PROGRESS_DEPTH' : 0}
+
+if throttleProfileCaptureMode:
+    profileBGColor = '#f8f9fa'
+    profileTextColor = bgColor
+else:
+    profileBGColor = boxColor
+    profileTextColor = textColor
 
 sg.theme_add_new('Discord_Dark', theme_definition)
 
@@ -2954,14 +2965,14 @@ def updateProfile(window):
         for i in range(0, 11):
             per = percents[i]
             color = getThreeColorGradient(per)
-            window['text' + str(i * 10)].update(' ' + str(int(round(span[i],1) * 100)) + '%')
+            window['text' + str(i * 10)].update(' ' + str(int(round(span[i],1) * 100)) + '%',text_color=profileTextColor)
             window['pyr' + str(i * 10)].update(' ' + str(per) + '%', text_color=bgColor, background_color=color)
             window['frame' + str(i * 10)].Widget.config(background=color, borderwidth=1)
             window['textframe' + str(i * 10)].Widget.config(borderwidth=1)
 
-        window['throttlemods'].update('Min: ' + str(minThrottle) + ' / Opt: ' + str(optThrottle) + ' / Max: ' + str(maxThrottle))
-        window['profilepercentheader'].update("Throttle")
-        window['profilepyrheader'].update("Max PY")
+        window['throttlemods'].update('Min: ' + str(minThrottle) + ' / Opt: ' + str(optThrottle) + ' / Max: ' + str(maxThrottle),text_color=profileTextColor)
+        window['profilepercentheader'].update("Throttle",text_color=profileTextColor)
+        window['profilepyrheader'].update("Max PY",text_color=profileTextColor)
     else:
         window['throttlemods'].update("")
         window['profilepercentheader'].update("")
@@ -3738,28 +3749,28 @@ def main():
         ]
 
         profilePercentCol = [
-            [sg.Push(),sg.Text("",font=baseFont,p=1, key='profilepercentheader'),sg.Push()],
+            [sg.Push(background_color=profileBGColor),sg.Text("",font=baseFont,p=1, key='profilepercentheader',text_color=profileTextColor,background_color=profileBGColor),sg.Push(background_color=profileBGColor)],
         ]
 
         profilePYRCol = [
-            [sg.Push(),sg.Text("",font=baseFont,p=1, key='profilepyrheader'),sg.Push()],
+            [sg.Push(background_color=profileBGColor),sg.Text("",font=baseFont,p=1, key='profilepyrheader',text_color=profileTextColor,background_color=profileBGColor),sg.Push(background_color=profileBGColor)],
         ]
 
         for i in range(0,11):
-            profilePercentCol.append([sg.Frame('',[[sg.Text("",font=baseFont,p=fontPadding,key='text'+str(i*10))]],border_width=0,p=1,s=(int(80*scaleFactor),int(20*scaleFactor)),key='textframe'+str(i*10), element_justification='center')])        
-            profilePYRCol.append([sg.Frame('',[[sg.Text("",font=baseFont,p=fontPadding,key='pyr'+str(i*10))]],border_width=0,p=1,s=(int(80*scaleFactor),int(20*scaleFactor)),key='frame'+str(i*10), element_justification='center')])
+            profilePercentCol.append([sg.Frame('',[[sg.Text("",font=baseFont,p=fontPadding,key='text'+str(i*10),text_color=profileTextColor,background_color=profileBGColor)]],border_width=0,p=1,s=(int(80*scaleFactor),int(20*scaleFactor)),key='textframe'+str(i*10), element_justification='center',background_color=profileBGColor)])        
+            profilePYRCol.append([sg.Frame('',[[sg.Text("",font=baseFont,p=fontPadding,key='pyr'+str(i*10),text_color=profileTextColor,background_color=profileBGColor)]],border_width=0,p=1,s=(int(80*scaleFactor),int(20*scaleFactor)),key='frame'+str(i*10), element_justification='center',background_color=profileBGColor)])
 
         profileFrame = [
-            [sg.Push(),sg.Text("Throttle Profile",font=headerFont,p=elementPadding),sg.Push()],
-            [sg.Push(),sg.Text("",font=baseFont,p=fontPadding, key='throttlemods'),sg.Push()],
-            [sg.VPush()],
-            [sg.Push(),sg.Frame('',profilePercentCol,border_width=0,p=0, s=(int(rightPaneWidth/3),int(300*scaleFactor))),sg.Frame('',profilePYRCol,border_width=0,p=0,s=(int(rightPaneWidth/3),int(300*scaleFactor))),sg.Push()],
-            [sg.VPush()]
+            [sg.Push(background_color=profileBGColor),sg.Text("Throttle Profile",font=headerFont,p=elementPadding,text_color=profileTextColor,background_color=profileBGColor),sg.Push(background_color=profileBGColor)],
+            [sg.Push(background_color=profileBGColor),sg.Text("",font=baseFont,p=fontPadding, key='throttlemods',text_color=profileTextColor,background_color=profileBGColor),sg.Push(background_color=profileBGColor)],
+            [sg.VPush(background_color=profileBGColor)],
+            [sg.Push(background_color=profileBGColor),sg.Frame('',profilePercentCol,border_width=0,p=0, s=(int(rightPaneWidth/3),int(300*scaleFactor)),background_color=profileBGColor),sg.Frame('',profilePYRCol,border_width=0,p=0,s=(int(rightPaneWidth/3),int(300*scaleFactor)),background_color=profileBGColor),sg.Push(background_color=profileBGColor)],
+            [sg.VPush(background_color=profileBGColor)]
         ]
 
         signatureFrame = [
             [sg.VPush()],
-            [sg.Push(),sg.Text("Seraph's Loadout Tool v2.0 ::ALPHA::", font=baseFont, p=fontPadding),sg.Push()],
+            [sg.Push(),sg.Text("Seraph's Loadout Tool v" + currentVersion, font=baseFont, p=fontPadding),sg.Push()],
             [sg.Push(),sg.Text("©2025 SeraphExodus", font=baseFont, p=fontPadding),sg.Push()],
             [sg.VPush()],
             [sg.Push(),sg.Text("Use Ctrl + C to take a screenshot!", font=baseFont, p=fontPadding),sg.Push()],
@@ -3769,7 +3780,7 @@ def main():
         rightPane = [
             [sg.Frame('', weaponSummaryBox, border_width=0, p=elementPadding, s=(rightPaneWidth,int(235*scaleFactor)))],
             [sg.Frame('', propulsionSummaryBox, border_width=0, p=elementPadding, s=(rightPaneWidth,int(195*scaleFactor)))],
-            [sg.Frame('', profileFrame, border_width=0, p=elementPadding, s=(rightPaneWidth, int(333*scaleFactor)))],
+            [sg.Frame('', profileFrame, border_width=0, p=elementPadding, s=(rightPaneWidth, int(333*scaleFactor)),background_color=profileBGColor)],
             [sg.Frame('', signatureFrame, border_width=0, p=elementPadding, s=(rightPaneWidth,int(87*scaleFactor)))]
         ]
 
@@ -3823,7 +3834,7 @@ def main():
             latestVersion = 0
             latestURL = ''
 
-        if not latestVersion == 0:
+        if not latestVersion == 0 and not versionOverride:
             if latestVersion != currentVersion:
                 result = alert("Alert",['Your version of the Loadout Tool appears to be out of date.', 'Click below to get the most recent version.',""],['Get Newest Version','Continue Anyway'],0)
                 if result == 'Get Newest Version':
@@ -3940,15 +3951,18 @@ def main():
                     clearLoadout(window, "parts")
 
             if event == 'Capture Screenshot':
-                    appWindow = FindWindow(None, "Seraph's Loadout Tool v2.0 Alpha")
-                    rect = GetWindowRect(appWindow)
+                appWindow = FindWindow(None, "Seraph's Loadout Tool v2.0 Alpha")
+                rect = GetWindowRect(appWindow)
+                if throttleProfileCaptureMode:
+                    rect = (rect[0]+8+1123+36, rect[1]+51+235+195+8+8+8+1+28, rect[2]-8-8-35, rect[3]-8-87-8-8-7)
+                else:
                     rect = (rect[0]+8, rect[1]+51, rect[2]-8, rect[3]-8)
-                    grab = ImageGrab.grab(bbox=rect, all_screens=True)
-                    screencapOutput = BytesIO()
-                    grab.convert("RGB").save(screencapOutput,"BMP")
-                    data = screencapOutput.getvalue()[14:]
-                    screencapOutput.close()
-                    toClipboard(win32clipboard.CF_DIB, data)
+                grab = ImageGrab.grab(bbox=rect, all_screens=True)
+                screencapOutput = BytesIO()
+                grab.convert("RGB").save(screencapOutput,"BMP")
+                data = screencapOutput.getvalue()[14:]
+                screencapOutput.close()
+                toClipboard(win32clipboard.CF_DIB, data)
 
             if event == 'reactorselection':
                 refreshReactor(window, values['reactorselection'])

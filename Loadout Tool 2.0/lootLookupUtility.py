@@ -1700,4 +1700,4 @@ def lootLookup():
     lootLookupWindow.close()
     data.close()
 
-lootLookup()
+#lootLookup()

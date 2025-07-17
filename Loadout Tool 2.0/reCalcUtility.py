@@ -634,12 +634,13 @@ def getMatches(reCalcWindow):
     rarityList1inx = []
 
     for i in range(0,len(compStats)):
-        zeroCheck = getRarity(0,means[i],stdevs[i],mixtureWeights)
+        if tails[i] < 0: #removes negative values from the distribution for left-tailed stats
+            zeroCheck = getRarity(0,means[i],stdevs[i],mixtureWeights)
+        else:
+            zeroCheck = 0
         rarity = tryFloat(getRarity(stats[i],means[i],stdevs[i],mixtureWeights)) - zeroCheck
         if rarity < 0:
             rarity = 0
-        else:
-            rarity = getRarity(stats[i],means[i],stdevs[i],mixtureWeights)
         if rarity == '':
             rarityList.append('')
             rarityList1inx.append('')
@@ -856,7 +857,7 @@ def getMatches(reCalcWindow):
         testMax = 6 * statMeans[i]
 
         while delta > 0.000000000001:
-            if compType == 'Armor' and compStats[i] == 'Mass':
+            if tails[i] < 0: #removes negative values from distribution for left-tailed stats
                 zeroMass = getRarity(0,means[i],stdevs[i],mixtureWeights)
                 testRarity = getRarity(value,means[i],stdevs[i],mixtureWeights) - zeroMass
                 if rarity < 0:
@@ -1463,7 +1464,7 @@ def reAnalysis(reCalcWindow):
     else:
         direction = -1
     reMults = [0.02,0.03,0.03,0.04,0.04,0.05,0.05,0.06,0.07,0.07]
-    reMult = reMults[level-1]
+    reMult = reMults[int(level)-1]
     tails = list(cur.execute("SELECT stat1re,stat2re,stat3re,stat4re,stat5re,stat6re,stat7re,stat8re FROM component WHERE type = ?",[compType]).fetchall()[0])
 
     compStats = list(cur.execute("SELECT stat1disp,stat2disp,stat3disp,stat4disp,stat5disp,stat6disp,stat7disp,stat8disp FROM component WHERE type = ?",[compType]).fetchall()[0])
@@ -2142,6 +2143,8 @@ def updateConfigPane(rarity, threshold, reCalcWindow):
             thresholdHighTight = tryFloat(rarity)/pow(10,1/3)
             reCalcWindow['matchthreshold'].update(formatRarity(1/(tryFloat(rarity)*pow(10,0.5))) + " to " + formatRarity(1/(tryFloat(rarity)/pow(10,0.5))))
     else:
+        thresholdLowTight = 0
+        thresholdHighTight = 0
         reCalcWindow['targetrarity'].update('')
         reCalcWindow['matchthreshold'].update('')
     
@@ -2494,6 +2497,9 @@ def reCalc():
 
         elif window == reCalcWindow:
 
+            if event == sg.WIN_CLOSED or event == 'Exit':
+                break
+
             if event == 'Capture Screenshot':
                 appWindow = FindWindow(None, "Reverse Engineering Calculator")
                 rect = GetWindowRect(appWindow)
@@ -2704,55 +2710,54 @@ def reCalc():
                     reCalcWindow['logdelta' + str(i)].update('')
                     reCalcWindow['matchquality' + str(i)].update('')
 
-            try:
-                if event.endswith("+FOCUS OUT"):
-                    reAnalysis(reCalcWindow)
-                    inputID = event.split("+FOCUS OUT")[0].split('statinput')[1]
-                    formattedStat = formatStat(values['statinput' + inputID],reCalcWindow['stattext' + inputID].get(),values['componentselect'])
-                    reCalcWindow['statinput' + inputID].update(formattedStat)
-                    updateREOutputs(reCalcWindow)
-                    rarityList, rarityList1inx, rarity, matches, matchesRaw, postRE, logDelta, matchDelta = getMatches(reCalcWindow)
-                    updateMatchQuality(rarityList,matchDelta,reCalcWindow)
-                    logDelta = formatLogDelta(logDelta)
-                    unicorns, unicornThreshold = isUnicorn(rarityList, reCalcWindow)
-                    thresholdLow, thresholdHigh = updateConfigPane(rarity,unicornThreshold,reCalcWindow)
+            if event.endswith("+FOCUS OUT"):
+                reAnalysis(reCalcWindow)
+                inputID = event.split("+FOCUS OUT")[0].split('statinput')[1]
+                formattedStat = formatStat(values['statinput' + inputID],reCalcWindow['stattext' + inputID].get(),values['componentselect'])
+                reCalcWindow['statinput' + inputID].update(formattedStat)
+                updateREOutputs(reCalcWindow)
+                rarityList, rarityList1inx, rarity, matches, matchesRaw, postRE, logDelta, matchDelta = getMatches(reCalcWindow)
+                updateMatchQuality(rarityList,matchDelta,reCalcWindow)
+                logDelta = formatLogDelta(logDelta)
+                unicorns, unicornThreshold = isUnicorn(rarityList, reCalcWindow)
+                thresholdLow, thresholdHigh = updateConfigPane(rarity,unicornThreshold,reCalcWindow)
+                if '' in matches:
+                    matchRaw = [''] * 9
+                    matchPost = [''] * 9
+                else:
                     matchRaw, matchPost = generateMatchBands(thresholdLow,thresholdHigh,matches,postRE,reCalcWindow)
-                    for i in range(0,9):
-                        try:
-                            reCalcWindow['statrarity' + str(i)].update(rarityList1inx[i])
-                            reCalcWindow['logdelta' + str(i)].update(logDelta[i])
-                            reCalcWindow['matchoutput' + str(i)].update(matchRaw[i])
-                            reCalcWindow['matchpost' + str(i)].update(matchPost[i])
-                        except:
-                            reCalcWindow['statrarity' + str(i)].update('')
-                            reCalcWindow['logdelta' + str(i)].update('')
-                            reCalcWindow['matchoutput' + str(i)].update('')
-                            reCalcWindow['matchpost' + str(i)].update('')
-
-                    nonEmptyStats = 0
-                    matchCount = 0
-                    for i in range(0,9):
-                        if values['statinput' + str(i)] not in ['', 0]:
-                            nonEmptyStats += 1
-                        if reCalcWindow['matchoutput' + str(i)].get() not in ['', 0]:
-                            matchCount += 1
-                    if nonEmptyStats > 0 and matchCount >= nonEmptyStats:
-                        if projects != []:
-                            reCalcWindow['menu'].update(menu_def_save_load_unlocked)
-                            menu = menu_def_save_load_unlocked
-                        else:
-                            reCalcWindow['menu'].update(menu_def_save_unlocked)
-                            menu = menu_def_save_unlocked
+                for i in range(0,9):
+                    try:
+                        reCalcWindow['statrarity' + str(i)].update(rarityList1inx[i])
+                        reCalcWindow['logdelta' + str(i)].update(logDelta[i])
+                        reCalcWindow['matchoutput' + str(i)].update(matchRaw[i])
+                        reCalcWindow['matchpost' + str(i)].update(matchPost[i])
+                    except:
+                        reCalcWindow['statrarity' + str(i)].update('')
+                        reCalcWindow['logdelta' + str(i)].update('')
+                        reCalcWindow['matchoutput' + str(i)].update('')
+                        reCalcWindow['matchpost' + str(i)].update('')
+                nonEmptyStats = 0
+                matchCount = 0
+                for i in range(0,9):
+                    if values['statinput' + str(i)] not in ['', 0]:
+                        nonEmptyStats += 1
+                    if reCalcWindow['matchoutput' + str(i)].get() not in ['', 0]:
+                        matchCount += 1
+                if nonEmptyStats > 0 and matchCount >= nonEmptyStats:
+                    if projects != []:
+                        reCalcWindow['menu'].update(menu_def_save_load_unlocked)
+                        menu = menu_def_save_load_unlocked
                     else:
-                        reCalcWindow['menu'].update(menu_def)
-                        menu = menu_def
-
-                    if analysisWindow != None:
-                        analysisWindow = reAnalysisUI(reCalcWindow, False, analysisWindow)
-                    if brandWindow != None:
-                        brandWindow = brandTable(reCalcWindow, False, brandWindow)
-            except:
-                pass
+                        reCalcWindow['menu'].update(menu_def_save_unlocked)
+                        menu = menu_def_save_unlocked
+                else:
+                    reCalcWindow['menu'].update(menu_def)
+                    menu = menu_def
+                if analysisWindow != None:
+                    analysisWindow = reAnalysisUI(reCalcWindow, False, analysisWindow)
+                if brandWindow != None:
+                    brandWindow = brandTable(reCalcWindow, False, brandWindow)
                 
             if event == 'matchingtarget':
                 rarityList, rarityList1inx, rarity, matches, matchesRaw, postRE, logDelta, matchDelta = getMatches(reCalcWindow)
@@ -2796,9 +2801,6 @@ def reCalc():
                     reCalcWindow['matchingtarget'].update(disabled=True)
             except:
                 pass
-
-            if event == sg.WIN_CLOSED or event == 'Exit':
-                break
 
     reCalcWindow.close()
     db.close()
