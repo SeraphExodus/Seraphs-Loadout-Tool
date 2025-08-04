@@ -13,6 +13,18 @@ def precisionRounding(x,precision,dir):
     else:
         return round(x * 1/precision,0) * precision
 
+def smoothHistogram(data):
+    #turn each datapoint in a set into a tiny normal distribution and sum them all together to make a smooth curve out of a histogram
+    width = 5
+    domain = range(int(max(data)+width))
+    output = np.zeros(len(domain))
+    for d in data:
+        for x in range(len(domain)):
+            normal = 1/(width * np.sqrt(2*np.pi)) * np.exp(-0.5 * np.square((domain[x] - d) / width))
+            output[x] += normal
+    return domain, output
+    
+
 def generatePointGrid(vertexProjection,spacing):
 
     quadrant1 = [0,0]
@@ -182,9 +194,9 @@ def main():
     startTime = datetime.now()
 
     # /// Sim Configuration ///
-    boxes = [[32,10,42]]
+    boxes = [[26.5,5.62,17.33]]
     offsets = [[0, 0, 0]]
-    boxes, offsets = coords2BoxOffset([[[22.5204887,4.69140148,27.09134],[-22.5204887,-3.22165513,-27.609]],[[7.577867,9.669678,49.7918968],[-7.577867,-4.34824848,-28.45220]],[[0.81808126,33.38945,-19.2523],[-0.81808126,-25.6273746,-35.9919357]]]) #use this function for converting from .lod box coordinates to this script's system
+    #boxes, offsets = coords2BoxOffset([[[22.5204887,4.69140148,27.09134],[-22.5204887,-3.22165513,-27.609]],[[7.577867,9.669678,49.7918968],[-7.577867,-4.34824848,-28.45220]],[[0.81808126,33.38945,-19.2523],[-0.81808126,-25.6273746,-35.9919357]]]) #use this function for converting from .lod box coordinates to this script's system
     boxColors = ['#ff9900','#0000ff','#ff00ff','#00ff99']
     showGraphs = False #Tends to be a lot faster when you turn off the graphing.
     precisionMultiplier = 1 #1 is default. Increasing precision raises time complexity significantly ~O(n^2)
@@ -196,17 +208,31 @@ def main():
         
     areaList = []
 
-    spherePoints = [] #generates a sphere made up of fibonacci spirals to provide roughly evenly-spaced points on its surface
-    n = int(views/2)
-    for p in range(-n,n):
-        phi = np.arcsin(2*p/(2*n+1)) + np.pi/2
-        theta = (2*np.pi*p*1/1.61803398875) #golden ratio
-        x = np.cos(theta) * np.sin(phi)
-        y = np.sin(theta) * np.sin(phi)
-        z = np.cos(phi)
-        spherePoints.append([x, y, z])
+    spherePoints = [[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]] #makes sure we capture all of the front/top/side views
+    
+    ### generates a sphere made up of fibonacci spirals to provide roughly evenly-spaced points on its surface ###
+    # n = int(views/2)
+    # for p in range(-n,n):
+    #     phi = np.arcsin(2*p/(2*n+1)) + np.pi/2
+    #     theta = (2*np.pi*p*1/1.61803398875) #golden ratio
+    #     x = np.cos(theta) * np.sin(phi)
+    #     y = np.sin(theta) * np.sin(phi)
+    #     z = np.cos(phi)
+    #     spherePoints.append([x, y, z])
 
-    spherePoints += [[1,0,0],[0,1,0],[0,0,1]] #makes sure we capture all of the front/top/side views
+    #Fibonacci sphere was cool but random points should, in theory, yield less shape-biased results.
+
+    rand0 = np.random.rand(views,1)
+    rand1 = np.random.rand(views,1)
+
+    phi = [np.arccos(2*a[0] - 1) for a in rand0]
+    theta = [2*np.pi*b[0] for b in rand1]
+    # x = [np.cos(theta[i]) * np.sin(phi[i]) for i in range(views)]
+    # y = [np.sin(theta[i]) * np.sin(phi[i]) for i in range(views)]
+    # z = [np.cos(phi[i]) for i in range(views)]
+    spherePoints += [[np.cos(theta[i]) * np.sin(phi[i]),np.sin(theta[i]) * np.sin(phi[i]),np.cos(phi[i])] for i in range(views)]
+
+
     spherePoints = [list(x) for x in set(tuple(x) for x in spherePoints)]
 
     spherePoints.sort(key=operator.itemgetter(2))
@@ -380,9 +406,8 @@ def main():
     fig = plt.figure(figsize=(12,12))
     ax = fig.add_subplot(1,1,1)
     ax.cla()
-    areaList = sorted(areaList)
-    x = range(len(areaList))
-    ax.scatter(x,areaList)
+    x, y = smoothHistogram(areaList)
+    ax.plot(x,y)
     plt.show()
 
 main()
