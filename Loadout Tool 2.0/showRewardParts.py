@@ -15,7 +15,7 @@ def normalCDF(Z):
         SyntaxError
 
 def getRarity(value, statIndex, tail, reLevel):
-    data = sqlite3.connect("file:Data\\tables.db?mode=rw", uri=True)
+    data = sqlite3.connect("file:tables.db?mode=rw", uri=True)
     cur = data.cursor()
     
     compList = cur.execute("SELECT * FROM brands WHERE relevel = ?", [reLevel]).fetchall()
@@ -40,7 +40,7 @@ def getRarity(value, statIndex, tail, reLevel):
     return totalRarity
 
 def showRewardParts():
-    data = sqlite3.connect("file:Data\\tables.db?mode=rw", uri=True)
+    data = sqlite3.connect("file:tables.db?mode=rw", uri=True)
     cur = data.cursor()
 
     brands = cur.execute("SELECT * FROM brands").fetchall()
