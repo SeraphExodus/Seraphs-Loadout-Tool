@@ -6,9 +6,6 @@ import sqlite3
 
 from pandas import read_excel
 
-from buildCompList import buildComponentList
-from buildTables import buildTables
-
 fontList = sg.Text.fonts_installed_list()
 
 if "Roboto" not in fontList:
@@ -51,6 +48,17 @@ theme_definition = {'BACKGROUND': boxColor,
 sg.theme_add_new('Discord_Dark', theme_definition)
 
 sg.theme('Discord_Dark')
+
+global tables
+global cur
+global compdb
+global cur2
+
+tables = sqlite3.connect("file:tables.db?mode=ro", uri=True)
+cur = tables.cursor()
+
+compdb = sqlite3.connect("file:"+os.getenv("APPDATA")+"\\Seraph's Loadout Tool\\savedata.db?mode=rw", uri=True)
+cur2 = compdb.cursor()
 
 def listify(query):
     output = []
@@ -103,9 +111,6 @@ def tryStr(x):
     
 
 def importBackup(filepath):
-
-    compdb = sqlite3.connect("file:Data\\savedata.db?mode=rw", uri=True)
-    cur2 = compdb.cursor()
 
     data = read_excel(filepath, sheet_name=None, header=None)
 
@@ -212,16 +217,9 @@ def importBackup(filepath):
         callback = False
 
     compdb.commit()
-    compdb.close()
     return callback
 
 def importBackupData():
-
-    if not os.path.exists("Data\\tables.db"):
-        buildTables('null')
-
-    if not os.path.exists("Data\\savedata.db"):
-        buildComponentList()
 
     Layout = [
     [sg.Text()],
@@ -260,4 +258,6 @@ def importBackupData():
             break
 
     window.close()
+    compdb.close()
+    tables.close()
     return callback

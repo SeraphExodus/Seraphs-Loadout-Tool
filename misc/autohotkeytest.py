@@ -1,10 +1,11 @@
 import pydirectinput as pdi
-import time
 
 from pynput.mouse import Listener, Button
 
 pCount = 0
-toggleMode = 0
+toggleMode = 1
+
+print("--------")
 
 def setPlayerCount(pCount):
     pCount = str(pCount)
@@ -14,6 +15,8 @@ def setPlayerCount(pCount):
     pdi.keyUp('ctrl')
     pdi.keyUp('shift')
     pdi.keyUp('f' + pCount)
+    pdi.keyUp('shift')
+    print(f"Player count set to {pCount}")
 
 # Function called on a mouse click
 def on_click(x, y, button, pressed):
@@ -55,9 +58,17 @@ def on_click(x, y, button, pressed):
             pCount = 1
     if pressed and button == Button.middle:
         if toggleMode == 0:
+            print("1-8 Mode")
             toggleMode = 1
         else:
+            print("1-3-5-8 Mode")
             toggleMode = 0
+
+print("Running")
+if toggleMode == 1:
+    print("1-8 Mode")
+else:
+    print("1-3-5-8 Mode")
 
 # Initialize the Listener to monitor mouse clicks
 with Listener(on_click=on_click) as listener:

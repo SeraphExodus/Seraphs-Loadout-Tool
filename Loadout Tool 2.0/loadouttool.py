@@ -6,6 +6,7 @@ import numpy as np
 import os
 import pyglet
 import pytesseract
+import shutil
 import sqlite3
 import sys
 import win32clipboard
@@ -17,18 +18,17 @@ from requests import get
 from webbrowser import open as browserOpen
 from win32gui import FindWindow, GetWindowRect
 
-from buildTables import buildTables
 from buildCompList import buildComponentList
 from fcCalcUtility import fcCalc
 from importBackup import importBackupData
 from lootLookupUtility import lootLookup
 from reCalcUtility import reCalc
 
-### Extra code in order to enable multiprocessing support in pyinstaller ###
-
 versionOverride = False #Set true to omit version checking for test releases. Set false for any actual release.
 
 throttleProfileCaptureMode = False #Set to false for normal screencapping, true to only capture the throttle profile with wiki background color for updating wiki pages
+
+### Extra code in order to enable multiprocessing support in pyinstaller ###
 
 class _Popen(forking.Popen):
     def __init__(self, *args, **kw):
@@ -66,9 +66,7 @@ class Process(multiprocessing.Process):
 ###Upload new version
 ###Update gist with new download link
 
-currentVersion = "2.A.15"
-
-buildTables(currentVersion)
+currentVersion = "2.17.0"
 
 versionURL = "https://gist.github.com/SeraphExodus/8ae0b6980e3780e8782847dbe76b0bf5/raw"
 
@@ -235,43 +233,43 @@ def getImageFromClipboard():
 def parseLines(image):
     image = np.array(image)
     xsum = np.sum(image,axis=1)
-    maxValue = max(xsum) - 4 * 255 #(4 pixels of wiggle room)
+    maxValue = max(xsum) - 4 * 255 #(4 pixels of wiggle room) - Identifies the 'blankest' row and uses that as a basis for identifying what isn't part of a text line
     isLine = [False]
     lineStarts = []
     lineEnds = []
-    for y in range(0,len(xsum)-1):
+    for y in range(0,len(xsum)-1): #Scans every row of pixels along the y-axis
         if xsum[y] < maxValue:
             if isLine[-1] == False:
-                lineStarts.append(y)
+                lineStarts.append(y) #If the row of pixels has more black than the blank row prototype, and the previous row wasn't part of a line, mark this row as the beginning of a text line
             isLine.append(True)
         else:
             if isLine[-1] == True:
-                lineEnds.append(y)
+                lineEnds.append(y) #vice versa, if the row of pixels is identified as a blank line, and the previous row was part of a text line, mark this row as the end of a text line
             isLine.append(False)
     if len(lineStarts) < len(lineEnds):
         lineStarts = [0] + lineStarts
     elif len(lineEnds) < len(lineStarts):
-        lineEnds.append([len(xsum)-1])
+        lineEnds.append([len(xsum)-1]) #the number of starts and ends can differ if the top or bottom of an image slices through a text line. This just pads the starting point/ending point lists to make the count match.
     lines = []
     for i in range(0,len(lineStarts)):
-        if lineEnds[i] - lineStarts[i] >= 8:
+        if lineEnds[i] - lineStarts[i] >= 8: #checks if the identified text line is at least 8 pixels vertically. This is the height of the game text, and we can exclude and 'lines' that are narrower as not being text.
             first = lineStarts[i]
             last = lineEnds[i]
-            line = image[lineStarts[i]:lineEnds[i],:]
+            line = image[lineStarts[i]:lineEnds[i],:] #Crops the image vertically to isolate the text line
 
             leftCrop = 0
             rightCrop = line.shape[1]
-            for i in range(10,line.shape[1]):
+            for i in range(10,line.shape[1]): #starting 10 pixels from the left side of the line, scan the vertical columns of pixels left-to-right until you find one with a standard deviation greater than 50 (indicator of text being present) then crop the image 10 pixels to the left of that point.
                 if np.std(line[:,i]) > 50:
                     leftCrop = i-10
                     break
-            for i in range(line.shape[1]-1,-1,-1):
+            for i in range(line.shape[1]-1,-1,-1): #same process, except starting from the right and working left.
                 if np.std(line[:,i]) > 50:
                     rightCrop = i+10
                     break
             line = line[:,leftCrop:rightCrop]
 
-            while last - first < 48:
+            while last - first < 48: #Pad each line on the top and bottom with rows of white pixels to improve ocr readability
                 first -= 1
                 last += 1
                 pixelRow = np.array([255] * line.shape[1],dtype='uint8')
@@ -299,10 +297,9 @@ def processImage():
         fn = lambda x : 0 if x > thresh else 255
     else:
         fn = lambda x : 255 if x > thresh else 0
-    image = image.convert('L').point(fn)
+    image = image.convert('L').point(fn) #Grayscale the image, making text black and background white.
     # time2 = datetime.now()
     # print('convert to monochrome',time2-time1)
-
     scale = 3
     
     image = image.resize((int(image.size[0]*scale),int(image.size[1]*scale)),Image.Resampling.LANCZOS)
@@ -310,18 +307,18 @@ def processImage():
     # time3 = datetime.now()
     # print('scale and resample',time3-time2)
 
-    pytesseract.pytesseract.tesseract_cmd= 'Data\\tesseract\\tesseract.exe'
+    pytesseract.pytesseract.tesseract_cmd= os.path.abspath(os.path.join(os.path.dirname(__file__), 'tesseract\\tesseract.exe'))
 
     lines = parseLines(image)
 
     textList = []
 
-    for line in lines:
+    for line in lines: #Runs tesseract on each text line individually and replaces common error characters.
         tex = pytesseract.image_to_string(line,lang='eng',config='--psm 7').replace('\n','')
         tex = tex.replace('$','8').replace('¥','V').replace('\n\n','\n')
         textList.append(tex)
 
-    print([x for x in textList])
+    #print([x for x in textList])
 
     # time4 = datetime.now()
     # print('run tesseract',time4-time3)
@@ -334,6 +331,13 @@ def tryFloat(x):
         return y
     except:
         return 0
+
+def tryFloatRetainPrecision(x):
+    try:
+        y = float(x)
+        return x
+    except:
+        return ''
 
 def tryInt(x):
     try:
@@ -449,14 +453,22 @@ def alert(headerText, textLines, buttons, timeout, *settings):
             alertWindow.close()
             return event
 
+def popImage(header, filename):
+    Layout = [
+        [sg.Image(filename)]
+    ]
+
+    imageWindow = sg.Window(header,Layout,modal=False,icon=os.path.abspath(os.path.join(os.path.dirname(__file__), 'SLT_Icon.ico')), )
+
+    while True:
+        event, values = imageWindow.read()
+
+        if event == sg.WIN_CLOSED:
+            imageWindow.close()
+            break
+
 def updateParts(*arg):
     #If you pass a chassis in, it updates the dynamic slot lists too. Otherwise it just updates the part lists
-
-    tables = sqlite3.connect("file:Data\\tables.db?mode=ro", uri=True)
-    cur = tables.cursor()
-
-    compdb = sqlite3.connect("file:Data\\savedata.db?mode=rw", uri=True)
-    cur2 = compdb.cursor()
 
     reactorList = ["None"] + listify(cur2.execute("SELECT name FROM reactor").fetchall())
     engineList = ["None"] + listify(cur2.execute("SELECT name FROM engine").fetchall())
@@ -498,25 +510,16 @@ def updateParts(*arg):
     slot7List = ["None"] + slotLists[6]
     slot8List = ["None"] + slotLists[7]
 
-    compdb.close()
-    tables.close()
-
     return [reactorList, engineList, boosterList, shieldList, armorList, diList, chList, capList, slot1List, slot2List, slot3List, slot4List, slot5List, slot6List, slot7List, slot8List]
 
 def verifyEntries(window):
 
     chassis = window['chassistype'].get()
 
-    tables = sqlite3.connect("file:Data\\tables.db?mode=ro", uri=True)
-    cur = tables.cursor()
-
     if not chassis == '':
         headers = list(cur.execute("SELECT * FROM chassis WHERE name = ?", [chassis]).fetchall()[0][2:10])
     else:
         headers = [''] * 8
-    
-    compdb = sqlite3.connect("file:Data\\savedata.db?mode=rw", uri=True)
-    cur2 = compdb.cursor()
 
     events, values = window.read(timeout=0)
 
@@ -665,9 +668,6 @@ def updateDrainStrings(window):
     coLevel = values['capacitoroverchargelevel']
     woLevel = values['weaponoverloadlevel']
 
-    tables = sqlite3.connect("file:Data\\tables.db?mode=ro", uri=True)
-    cur = tables.cursor()
-
     overloads = cur.execute("SELECT name,energyefficiency,genefficiency FROM fcprogram").fetchall()[0:16]
 
     if roLevel == "None":
@@ -749,8 +749,6 @@ def updateDrainStrings(window):
         window['minimumgen'].update("")
     window.refresh()
 
-    tables.close()
-
 def updateDropdowns(lists, window, windowValues, disable, *headers):
 
     reactorList = lists[0]
@@ -806,10 +804,7 @@ def updateDropdowns(lists, window, windowValues, disable, *headers):
 
 def updateSlotHeaders(chassis, window):
 
-    tables = sqlite3.connect("file:Data\\tables.db?mode=ro", uri=True)
-    cur = tables.cursor()
     headers = list(cur.execute("SELECT * FROM chassis WHERE name = ?", [chassis]).fetchall()[0][2:10])
-    tables.close()
 
     window['slot1header'].update(headers[0])
     window['slot2header'].update(headers[1])
@@ -828,9 +823,6 @@ def updatePacks(window, component, slot, togglevis):
     event, values = window.read(timeout=0)
     [compType, stats] = getSlotStats(component)
     query = stats[2]
-
-    compdb = sqlite3.connect("file:Data\\savedata.db?mode=rw", uri=True)
-    cur2 = compdb.cursor()
 
     packList = slot + 'packselection'
     try:
@@ -853,17 +845,15 @@ def updatePacks(window, component, slot, togglevis):
         else:
             window[packList].update(value = preValue, values = slotPacks, size=(28,10))
     else:
+        slotPacks = []
         window[packList].update(visible=False, size=(28,10))
         window.refresh()
-
-    compdb.close()
+    
+    return slotPacks
 
 def getSlotStats(selection):
 
     ###This method is vulnerable to non-uniquely-named weap/cm/ordnance. Need to solve this somehow.
-
-    compdb = sqlite3.connect("file:Data\\savedata.db?mode=rw", uri=True)
-    cur2 = compdb.cursor()
     
     compType = "Null"
 
@@ -889,14 +879,10 @@ def getSlotStats(selection):
         except:
             output.append("")
 
-    compdb.close()
-
     return [compType, output]
 
 def refreshReactor(window, component):
 
-    compdb = sqlite3.connect("file:Data\\savedata.db?mode=rw", uri=True)
-    cur2 = compdb.cursor()
     if type(component) == str and not component == "None" and not component == "":
         reactor = cur2.execute("SELECT * FROM reactor WHERE name = ?", [component]).fetchall()[0]
         reactor = displayPrecision(reactor, [1, 1])
@@ -906,13 +892,9 @@ def refreshReactor(window, component):
         window['reactormass'].update("")
         window['reactorgen'].update("")
     
-    compdb.close()
     window.refresh()
 
 def refreshEngine(window, component):
-
-    compdb = sqlite3.connect("file:Data\\savedata.db?mode=rw", uri=True)
-    cur2 = compdb.cursor()
 
     if type(component) == str and not component == "None" and not component == "":
         engine = cur2.execute("SELECT * FROM engine WHERE name = ?", [component]).fetchall()[0]
@@ -931,13 +913,9 @@ def refreshEngine(window, component):
         window['engineroll'].update("")
         window['enginets'].update("")
 
-    compdb.close()
     window.refresh()
 
 def refreshBooster(window, component):
-
-    compdb = sqlite3.connect("file:Data\\savedata.db?mode=rw", uri=True)
-    cur2 = compdb.cursor()
 
     if type(component) == str and not component == "None" and not component == "":
         booster = cur2.execute("SELECT * FROM booster WHERE name = ?", [component]).fetchall()[0]
@@ -958,13 +936,9 @@ def refreshBooster(window, component):
         window['boosteraccel'].update("")
         window['boosterts'].update("")
 
-    compdb.close()
     window.refresh()
 
 def refreshShield(window, component, adjust):
-
-    tables = sqlite3.connect("file:Data\\tables.db?more=ro", uri=True)
-    cur = tables.cursor()
 
     if adjust == "None" or not type(adjust) == str:
         adjustFrontRatio = 1
@@ -972,9 +946,6 @@ def refreshShield(window, component, adjust):
         halves = adjust.split(' - ', 1)
         name = "Shield " + halves[0] + " Adjust - " + halves[1]
         adjustFrontRatio = tryFloat(cur.execute("SELECT frontshieldratio FROM fcprogram WHERE name = ?", [name]).fetchall()[0][0])
-
-    compdb = sqlite3.connect("file:Data\\savedata.db?mode=rw", uri=True)
-    cur2 = compdb.cursor()
 
     if type(component) == str and not component == "None" and not component == "":
         shield = cur2.execute("SELECT * FROM shield WHERE name = ?", [component]).fetchall()[0]
@@ -1010,14 +981,9 @@ def refreshShield(window, component, adjust):
         window['shieldfront'].update("")
         window['shieldback'].update("")
 
-    compdb.close()
-    tables.close()
     window.refresh()
 
 def refreshFrontArmor(window, component):
-
-    compdb = sqlite3.connect("file:Data\\savedata.db?mode=rw", uri=True)
-    cur2 = compdb.cursor()
 
     if type(component) == str and not component == "None" and not component == "":
         armor = cur2.execute("SELECT * FROM armor WHERE name = ?", [component]).fetchall()[0]
@@ -1028,13 +994,9 @@ def refreshFrontArmor(window, component):
         window['frontarmorahp'].update("")
         window['frontarmormass'].update("")
 
-    compdb.close()
     window.refresh()
 
 def refreshRearArmor(window, component): 
-
-    compdb = sqlite3.connect("file:Data\\savedata.db?mode=rw", uri=True)
-    cur2 = compdb.cursor()
 
     if type(component) == str and not component == "None" and not component == "":
         armor = cur2.execute("SELECT * FROM armor WHERE name = ?", [component]).fetchall()[0]
@@ -1045,13 +1007,9 @@ def refreshRearArmor(window, component):
         window['reararmorahp'].update("")
         window['reararmormass'].update("")
 
-    compdb.close()
     window.refresh()
 
 def refreshDI(window, component):
-
-    compdb = sqlite3.connect("file:Data\\savedata.db?mode=rw", uri=True)
-    cur2 = compdb.cursor()
 
     if type(component) == str and not component == "None" and not component == "":
         di = cur2.execute("SELECT * FROM droidinterface WHERE name = ?", [component]).fetchall()[0]
@@ -1064,13 +1022,9 @@ def refreshDI(window, component):
         window['dimass'].update("")
         window['didcs'].update("")
 
-    compdb.close()
     window.refresh()
 
 def refreshCH(window, component):
-
-    compdb = sqlite3.connect("file:Data\\savedata.db?mode=rw", uri=True)
-    cur2 = compdb.cursor()
 
     if type(component) == str and not component == "None" and not component == "":
         ch = cur2.execute("SELECT * FROM cargohold WHERE name = ?", [component]).fetchall()[0]
@@ -1079,13 +1033,9 @@ def refreshCH(window, component):
     else:
         window['chmass'].update("")
 
-    compdb.close()
     window.refresh()
 
 def refreshCapacitor(window, component):
-
-    compdb = sqlite3.connect("file:Data\\savedata.db?mode=rw", uri=True)
-    cur2 = compdb.cursor()
 
     if type(component) == str and not component == "None" and not component == "":
         cap = cur2.execute("SELECT * FROM capacitor WHERE name = ?", [component]).fetchall()[0]
@@ -1100,16 +1050,9 @@ def refreshCapacitor(window, component):
         window['capacitorce'].update("")
         window['capacitorrr'].update("")
 
-    compdb.close()
     window.refresh()
 
 def refreshSlot(window, component, slotID):
-
-    tables = sqlite3.connect("file:Data\\tables.db?mode=ro", uri=True)
-    cur = tables.cursor()
-
-    compdb = sqlite3.connect("file:Data\\savedata.db?mode=rw", uri=True)
-    cur2 = compdb.cursor()
 
     slot = 'slot' + str(slotID)
 
@@ -1193,10 +1136,13 @@ def refreshSlot(window, component, slotID):
         window[slot + 'stat8'].update("") 
         window[slot + 'packselection'].update("")
 
-    compdb.close()
     window.refresh()
 
-    updatePacks(window, component, slot, True)
+    slotPacks = updatePacks(window, component, slot, True)
+
+    currentPack = window[slot + 'packselection'].get()
+    if currentPack in slotPacks:
+        refreshPack(window,currentPack,slotID)
 
     return compType
 
@@ -1208,12 +1154,6 @@ def refreshPack(window, component, slotID, *arg):
         compType = "Null"
 
     slot = 'slot' + str(slotID)
-
-    tables = sqlite3.connect("file:Data\\tables.db?mode=ro", uri=True)
-    cur = tables.cursor()
-    
-    compdb = sqlite3.connect("file:Data\\savedata.db?mode=rw", uri=True)
-    cur2 = compdb.cursor()
 
     if type(component) == str and not component == "None" and not component == "":
         try:
@@ -1230,7 +1170,7 @@ def refreshPack(window, component, slotID, *arg):
                 stats.append("")
         try:
             ordnanceStats = cur.execute("SELECT * FROM ordnance WHERE type = ?", [packStats[4]]).fetchall()[0]
-            stats[4] = int(stats[2])
+            stats[4] = int(tryFloat(stats[2]))
             stats[2] = "{:.3f}".format(tryFloat(ordnanceStats[2]))
             stats[3] = "{:.3f}".format(tryFloat(ordnanceStats[3]))
             window[slot + 'stat3'].update(round(tryFloat(stats[0]),1))
@@ -1239,7 +1179,7 @@ def refreshPack(window, component, slotID, *arg):
             window[slot + 'stat6'].update(stats[3])
             window[slot + 'stat7'].update(stats[4])
         except:
-            window[slot + 'stat3'].update(int(stats[0]))
+            window[slot + 'stat3'].update(int(tryFloat(stats[0])))
             window[slot + 'stat4'].update(stats[1])
             window[slot + 'stat5'].update(stats[2])
             window[slot + 'stat6'].update(stats[3])
@@ -1250,8 +1190,7 @@ def refreshPack(window, component, slotID, *arg):
         window[slot + 'stat5'].update("")
         window[slot + 'stat6'].update("")
         window[slot + 'stat7'].update("")
-    
-    compdb.close()
+
     window.refresh()
 
 def updateOverloadMults(window):
@@ -1263,9 +1202,6 @@ def updateOverloadMults(window):
     coLevel = values['capacitoroverchargelevel']
     woLevel = values['weaponoverloadlevel']
     adjust = values['shieldadjustsetting']
-
-    tables = sqlite3.connect("file:Data\\tables.db?mode=ro", uri=True)
-    cur = tables.cursor()
 
     overloads = cur.execute("SELECT name,energyefficiency,genefficiency FROM fcprogram").fetchall()[0:16]
 
@@ -1340,16 +1276,9 @@ def updateOverloadMults(window):
         window['shieldadjustdesc4'].update(str((2-adjustFrontRatio)) + 'x')
 
     window.refresh()
-    tables.close()
 
 def doWeaponCalculations(window):
     event, values = window.read(timeout=0)
-
-    tables = sqlite3.connect("file:Data\\tables.db?mode=ro", uri=True)
-    cur = tables.cursor()
-
-    compdb = sqlite3.connect("file:Data\\savedata.db?mode=rw", uri=True)
-    cur2 = compdb.cursor()
 
     overloads = cur.execute("SELECT name,energyefficiency,genefficiency FROM fcprogram").fetchall()[0:16]
     
@@ -1540,17 +1469,8 @@ def doWeaponCalculations(window):
 
     window.refresh()
 
-    tables.close()
-    compdb.close()
-
 def doPropulsionCalculations(window):
     event, values = window.read(timeout=0)
-
-    tables = sqlite3.connect("file:Data\\tables.db?mode=ro", uri=True)
-    cur = tables.cursor()
-
-    compdb = sqlite3.connect("file:Data\\savedata.db?mode=rw", uri=True)
-    cur2 = compdb.cursor()
 
     overloads = cur.execute("SELECT name,energyefficiency,genefficiency FROM fcprogram").fetchall()[0:16]
 
@@ -1650,13 +1570,8 @@ def doPropulsionCalculations(window):
             window['boostdistance'].update(str(int(boostedDist)) + 'm')
 
     window.refresh()
-    tables.close()
-    compdb.close()
 
 def clearLoadout(window, clearType):
-
-    compdb = sqlite3.connect("file:Data\\savedata.db?mode=rw", uri=True)
-    cur2 = compdb.cursor()
 
     if clearType == "all":
         window['slot1header'].update('')
@@ -1771,10 +1686,6 @@ def clearLoadout(window, clearType):
     window.refresh()
 
 def updateLoadoutPreview(loadout):
-    compdb = sqlite3.connect("file:Data\\savedata.db?mode=rw", uri=True)
-    cur2 = compdb.cursor()
-    tables = sqlite3.connect("file:Data\\tables.db?mode=ro", uri=True)
-    cur = tables.cursor()
 
     loadoutData = cur2.execute("SELECT * FROM loadout WHERE name = ?",[loadout]).fetchall()[0]
     chassis = loadoutData[1]
@@ -1793,19 +1704,11 @@ def updateLoadoutPreview(loadout):
     except:
         slotText = [''] * 19
         statText = slotText
-        alert('Error',['Error: Invalid loadout selected. This is probably due to an issue with the imported loadout data.','I recommend you delete the loadout and rebuild it.'],[],5)
-
-    compdb.close()
-    tables.close()
+        alert('Error',['Error: Invalid loadout selected. This is probably due to an issue with imported loadout data.','I recommend you delete the loadout and rebuild it.'],[],5)
 
     return slotText, statText
 
 def createLoadout(*editArgs):
-
-    tables = sqlite3.connect("file:Data\\tables.db?mode=ro", uri=True)
-    cur = tables.cursor()
-    compdb = sqlite3.connect("file:Data\\savedata.db?mode=rw", uri=True)
-    cur2 = compdb.cursor()
 
     chassisRaw= cur.execute("SELECT name FROM chassis").fetchall()
     massRaw = cur.execute("SELECT mass FROM chassis").fetchall()
@@ -1915,14 +1818,139 @@ def createLoadout(*editArgs):
 
     createLoadoutWindow.close()
     compdb.commit()
-    compdb.close()
-    tables.close()
 
     return valueList[0:3]
 
+def duplicateLoadout(selection):
+    
+    loadoutList = [x for x in cur2.execute("SELECT * FROM loadout").fetchall()]
+    chassisType = [x[1] for x in loadoutList if x[0] == selection][0]
+    chassisMass = [x[2] for x in loadoutList if x[0] == selection][0]
+
+    cmList = [x[0] for x in cur2.execute("SELECT name FROM countermeasurelauncher").fetchall()]
+    ordList = [x[0] for x in cur2.execute("SELECT name FROM ordnancelauncher").fetchall()]
+    weaponList = [x[0] for x in cur2.execute("SELECT name FROM weapon").fetchall()]
+
+    slotCompList = [x[12:28] for x in loadoutList if x[0] == selection][0]
+    slotCompTypes = []
+    for i in range(0,8):
+        if slotCompList[i] in ['None','']:
+            slotCompTypes.append(0)
+        elif slotCompList[i] in cmList:
+            slotCompTypes.append(3)
+        elif slotCompList[i] in ordList:
+            slotCompTypes.append(2)
+        elif slotCompList[i] in weaponList:
+            slotCompTypes.append(1)
+        else:
+            slotCompTypes.append(0)
+
+    chassisData = cur.execute("SELECT * FROM chassis").fetchall()
+    chassisList = [chassisType] + [x[0] for x in chassisData if x[0] != chassisType]
+    selectionMax = [x[1] for x in chassisData if x[0] == chassisType][0]
+
+    leftCol = [
+        [sg.Push(),sg.Text('Loadout to Duplicate:',font=baseFont,p=elementPadding)],
+        [sg.Push(),sg.Text('New Loadout Name:',font=baseFont,p=elementPadding)],
+        [sg.Push(),sg.Text('New Chassis Type:',font=baseFont,p=elementPadding)],
+        [sg.Push(),sg.Text('New Chassis Mass:',font=baseFont,p=elementPadding)],
+    ]
+
+    rightCol = [
+        [sg.Text(selection,font=baseFont,p=elementPadding),sg.Push()],
+        [sg.Input(selection,font=baseFont, key='newname', s=26,p=elementPadding),sg.Push()],
+        [sg.Combo(chassisList,default_value=chassisType,font=baseFont, key='chassisselect', s=24,p=elementPadding,readonly=True,enable_events=True),sg.Push()],
+        [sg.Input(chassisMass, font=baseFont, key='mass', s=11, enable_events=True), sg.Text('Max Mass: ' + selectionMax, key='maxmass', font=baseFont), sg.Push()],
+    ]
+
+    Layout = [
+        [sg.Push(),sg.Text('Duplicate Loadout',font=headerFont),sg.Push()],
+        [sg.VPush()],
+        [sg.Frame('',leftCol,border_width=0,p=elementPadding),sg.Frame('',rightCol,border_width=0,p=elementPadding)],
+        [sg.VPush()],
+        [sg.Push(),sg.Button('Duplicate',font=buttonFont),sg.Push(),sg.Button('Cancel',font=buttonFont),sg.Push()]        
+    ]
+
+    dupeWindow = sg.Window('Duplicate Loadout', Layout, modal=True, icon=os.path.abspath(os.path.join(os.path.dirname(__file__), 'SLT_Icon.ico')),finalize=True)
+    dupeWindow['newname'].set_focus()
+    dupeWindow.bind('<Escape>', 'Cancel')
+
+    dupeName = selection
+
+    while True:
+        event, values = dupeWindow.read()
+
+        if event == 'chassisselect':
+            newChassis = values['chassisselect']
+            newMaxMass = [x[1] for x in chassisData if x[0] == newChassis][0]
+            dupeWindow['maxmass'].update("Max Mass: " + newMaxMass)
+
+        if event == "Duplicate":
+
+            newChassis = values['chassisselect']
+            newSlots = [x[2:10] for x in chassisData if x[0] == newChassis][0] #important: we don't care about the selection's *slots*, only the types of components that are loaded.
+            slotCompatibility = []
+            for i in range(0,8):
+                currSlot = []
+                if 'CM' in newSlots[i] or 'Countermeasures' in newSlots[i]:
+                    currSlot.append(3)
+                if 'Ordnance' in newSlots[i]:
+                    currSlot.append(2)
+                if 'Weapon' in newSlots[i]:
+                    currSlot.append(1)
+                slotCompatibility.append(currSlot)
+
+            compOrder = [3, 2, 1]
+
+            newSlotList = [''] * 16 #we'll also move packs as appropriate
+
+            remainingSlots = [0,1,2,3,4,5,6,7]
+
+            for k in compOrder:
+                for j in range(0,8):
+                    if slotCompTypes[j] == k:
+                        for i in remainingSlots:
+                            if slotCompTypes[j] in slotCompatibility[i]:
+                                newSlotList[i] = slotCompList[j] #map slots
+                                newSlotList[i+8] = slotCompList[j+8] #map associated packs if any
+                                remainingSlots.remove(i)
+                                break
+
+            droppedCompFlag = False
+            for i in slotCompList:
+                if i not in newSlotList and i not in ['', 'None']:
+                    droppedCompFlag = True
+
+            newName = values['newname']
+            if newName in [x[0] for x in loadoutList]:
+                alert('Error',['Error: A loadout with this name already exists.','You must enter a unique name for the duplicate loadout.'],[],3)
+                remodalize(dupeWindow)
+            elif newName == '':
+                alert('Error',['Error: You must enter a name for the duplicate loadout.'],[],3)
+                remodalize(dupeWindow)
+            else:
+                response = ''
+                if droppedCompFlag:
+                    response = alert('Warning',["Warning: The target chassis doesn't have slots to accommodate all of the source loadout's components.","Incompatible components will be unslotted. Continue anyway?"],['Proceed','Cancel'],0)
+                if response == 'Proceed' or not droppedCompFlag:
+                    loadoutData = [[newName] + list(x[1:]) for x in loadoutList if x[0] == selection][0]
+                    loadoutData[1:3] = [values['chassisselect'],values['mass']]
+                    loadoutData[12:28] = newSlotList
+                    try:
+                        cur2.execute("INSERT INTO loadout VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",loadoutData)
+                        dupeName = newName
+                    except:
+                        alert('Error',['Error: An unknown issue occurred when attempting to duplicate this loadout. Make a post on my Discord detailing what happened so I can investigate.','-Seraph'],[],10)
+                        remodalize(dupeWindow)
+                    break
+
+        if event == "Exit" or event == sg.WIN_CLOSED or event == 'Cancel':
+            break
+    
+    dupeWindow.close()
+    return dupeName
+
 def loadLoadout(window):
-    compdb = sqlite3.connect("file:Data\\savedata.db?mode=rw", uri=True)
-    cur2 = compdb.cursor()
 
     loadoutList = listify(cur2.execute("SELECT name FROM loadout ORDER BY name ASC").fetchall())
 
@@ -1946,12 +1974,12 @@ def loadLoadout(window):
     Layout = [
         [sg.vtop(sg.Column(leftCol)), sg.vtop(sg.Frame('', rightCol, border_width=0, s=(450,425)))],
         [sg.VPush()],
-        [sg.Push(),sg.Push(),sg.Button("Load", font=buttonFont),sg.Push(),sg.Button("Edit",font=buttonFont),sg.Push(),sg.Button("Delete", font=buttonFont),sg.Push(),sg.Button("Cancel", font=buttonFont),sg.Push(),sg.Push()]
+        [sg.Push(),sg.Button("Load", font=buttonFont),sg.Push(),sg.Button("Edit",font=buttonFont),sg.Push(),sg.Button("Duplicate",font=buttonFont),sg.Push(),sg.Button("Delete", font=buttonFont),sg.Push(),sg.Button("Cancel", font=buttonFont),sg.Push()]
     ]
 
-    loadWindow = sg.Window('Loadout Management', Layout, modal=True, icon=os.path.abspath(os.path.join(os.path.dirname(__file__), 'SLT_Icon.ico')))
+    loadWindow = sg.Window('Loadout Management', Layout, modal=True, icon=os.path.abspath(os.path.join(os.path.dirname(__file__), 'SLT_Icon.ico')),finalize=True)
     sg.theme('Discord_Dark')
-    window.bind('<Escape>', 'Cancel')
+    loadWindow.bind('<Escape>', 'Cancel')
 
     loadoutData = [''] * 34
 
@@ -2059,7 +2087,6 @@ def loadLoadout(window):
             if loadout == '':
                 alert('Error',['Please select a loadout.'],['Okay'],0)
                 remodalize(loadWindow)
-                pass
             else:
                 oldName = loadout
                 newValues = createLoadout(loadout)
@@ -2082,6 +2109,28 @@ def loadLoadout(window):
                         window['loadoutname'].update(newValues[0])
                         updateMassStrings(newValues[2], window)
                         window.refresh()
+
+        if event == "Duplicate":
+            try:
+                selection = values['loadoutname'][0]
+                dupeName = duplicateLoadout(selection)
+                remodalize(loadWindow)
+                loadoutList = listify(cur2.execute("SELECT name FROM loadout ORDER BY name ASC").fetchall())
+                loadWindow['loadoutname'].update(values=loadoutList, set_to_index=loadoutList.index(dupeName))
+                slotText, statText = updateLoadoutPreview(dupeName) #probably redundant to bother updating anything aside from the name but it could be futureproofing so why not.
+                remodalize(loadWindow)
+                loadWindow['text0'].update("Loadout Name:")
+                loadWindow['data0'].update(dupeName)
+                for i in range(1,20):
+                    loadWindow['text' + str(i)].update(slotText[i-1])
+                    if slotText[i-1] == 'Mass:':
+                        loadWindow['data' + str(i)].update("{:.1f}".format(tryFloat(statText[i-1])))
+                    else:
+                        loadWindow['data' + str(i)].update(statText[i-1])
+                loadWindow.refresh()
+            except:
+                alert('Error',['Error: Please select a chassis to duplicate.'],[],3)
+                remodalize(loadWindow)
 
         if event == "Delete":
             try:
@@ -2111,7 +2160,6 @@ def loadLoadout(window):
             break
 
     compdb.commit()
-    compdb.close()
     loadWindow.close()
 
     return loadoutData[1], loadoutData[2], loaded
@@ -2120,9 +2168,6 @@ def saveLoadout(window):
     event, values = window.read(timeout=0)
 
     chassis = window['loadoutname'].get()
-
-    compdb = sqlite3.connect("file:Data\\savedata.db?mode=rw", uri=True)
-    cur2 = compdb.cursor()
 
     loadout = list(cur2.execute("SELECT * FROM loadout WHERE name = ?", [chassis]).fetchall()[0])
     newLoadout = loadout[:3] + [
@@ -2161,7 +2206,6 @@ def saveLoadout(window):
     cur2.execute("INSERT OR REPLACE INTO loadout VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", newLoadout)
     alert('',['Save Successful!'],[],3)
     compdb.commit()
-    compdb.close()
 
 def ordnanceCheck(stats, compName):
     if compName == "Ordnance Launcher":
@@ -2179,12 +2223,14 @@ def ordnanceCheck(stats, compName):
 
 def createComponent(componentName, *editArgs):
 
-    db = sqlite3.connect("file:Data\\tables.db?mode=ro", uri=True)
-    cur = db.cursor()
-    compdb = sqlite3.connect("file:Data\\savedata.db?mode=rw", uri=True)
-    cur2 = compdb.cursor()
-
     lookup = cur.execute("SELECT * FROM component WHERE type = '" + componentName + "'").fetchall()[0]
+    fullStats = cur.execute("SELECT stat1,stat2,stat3,stat4,stat5,stat6,stat7,stat8 FROM component").fetchall()
+    fullStats = [list(x) for x in fullStats]
+    fullStatsList = []
+    for stats in fullStats:
+        fullStatsList.extend([x for x in stats if x != ''])
+    fullStatsList = set(fullStatsList)
+
     statColumn = []
     inputColumn = []
 
@@ -2199,7 +2245,10 @@ def createComponent(componentName, *editArgs):
 
     for i in range(1, 9):
         if lookup[i] != '':
-            statColumn.append([sg.Push(), sg.Text(lookup[i] + ":", font=baseFont)])
+            if lookup[i] == 'Booster Energy Consumption Rate':
+                statColumn.append([sg.Push(), sg.Text("Booster Energy Consumption:", font=baseFont)]) #Truncates this stat since it's the only one that's too long to fit
+            else:
+                statColumn.append([sg.Push(), sg.Text(lookup[i] + ":", font=baseFont)])
             if lookup[i] == "Type":
                 ordnance = cur.execute("SELECT * FROM ordnance").fetchall()
                 types = []
@@ -2218,7 +2267,7 @@ def createComponent(componentName, *editArgs):
         inputColumn.insert(0,[sg.Text(editingName,font=baseFont),sg.Push()])
 
     tessLines = [
-        [sg.Push(),sg.Text('Tesseract OCR is Enabled',font=baseFont,p=0),sg.Push()],
+        [sg.Push(),sg.Text('Tesseract OCR is Enabled   ',font=baseFont,p=0),sg.Button(' ? ',font=("Roboto",10,"bold"),p=0),sg.Push()],
         [sg.Text('',font=baseFont,p=0)],
         [sg.Push(),sg.Text('Use the Windows Snipping Tool (Win+Shift+S) to capture your',font=baseFont,p=0),sg.Push()],
         [sg.Push(),sg.Text('component stats, and Ctrl-V to paste them into this window.',font=baseFont,p=0),sg.Push(),],
@@ -2235,7 +2284,7 @@ def createComponent(componentName, *editArgs):
         [sg.Push(),sg.Button("Save", font=buttonFont, bind_return_key=True), sg.Button("Cancel", font=buttonFont),sg.Push()]
     ]
 
-    if os.path.exists("Data\\tesseract"):
+    if os.path.exists(os.path.abspath(os.path.join(os.path.dirname(__file__), "tesseract"))):
         layout.insert(4,tessLines)
         winSize = tuple([450,525])
     else:
@@ -2252,9 +2301,13 @@ def createComponent(componentName, *editArgs):
     while True:
         event, values = addComponentWindow.read()
 
-        if event == 'pastecompstats' and getImageFromClipboard() != None and os.path.exists("Data\\tesseract"):
+        if event == ' ? ':
+            tessPopup = alert('Tesseract',["Tesseract OCR (optical character recognition) is an open-source engine that can identify text in an image and turn it into something that is machine-readable.","By combining this functionality with the snipping tool (Win-Shift-S), you can now capture your component stats directly from SWG without having to manually input everything.","","While it is mostly accurate, it still occasionally mixes up some numbers that look similar (3, 8, 0 in particular). Always double-check for accuracy when using this feature.",""],['Show Example','Close'],0)
+            if tessPopup == 'Show Example':
+                popImage('Tesseract Example',os.path.abspath(os.path.join(os.path.dirname(__file__), 'tessdemo.png')))
+                
+        if event == 'pastecompstats' and getImageFromClipboard() != None and os.path.exists(os.path.abspath(os.path.join(os.path.dirname(__file__), "tesseract"))):
             try:
-                print('running tess')
                 textLines = processImage()
                 textLines = [x for x in textLines if 'Type' not in x]
                 textStats = []
@@ -2309,13 +2362,26 @@ def createComponent(componentName, *editArgs):
                 partStats = list(lookup[1:9]) + ['Damage Modifier Against NPCs'] #adds this for ordnance ID to be removed later
                 #go over textStats and attempt to align the strings to the actual stat names using jellyfish
                 for i in range(0,len(textStats)):
+                    textStats[i] = textStats[i].replace('*','').replace('^','') #removes any extraneous carats and asterisks which can cause trouble down the line
                     for j in partStats:
-                        if i != '' and j != '':
+                        if textStats[i] != '' and j != '':
                             if jellyfish.damerau_levenshtein_distance(textStats[i],j)/len(j) <= 0.25 and j not in textStats:
                                 textStats[i] = j
+                                break
+                            elif jellyfish.damerau_levenshtein_distance(textStats[i],'Damage - Maximum')/16 <= 0.25 or jellyfish.damerau_levenshtein_distance(textStats[i],'Damage - Minimum')/16 <= 0.25: #If it looks like either of these, get finer since the distinction between the two is small
+                                if 'Minimum Damage' not in textStats and jellyfish.damerau_levenshtein_distance(textStats[i],'Damage - Minimum')/16 <= 0.0625:
+                                    textStats[i] = 'Minimum Damage'
+                                    break
+                                elif 'Maximum Damage' not in textStats and jellyfish.damerau_levenshtein_distance(textStats[i],'Damage - Maximum')/16 <= 0.0625:
+                                    textStats[i] = 'Maximum Damage'
+                                    break
                     if jellyfish.damerau_levenshtein_distance(textStats[i],'Ammo') <= 1: #Little extra translation since it's ammo in-game
                         textStats.append('Ammunition')
                         textValues.append(textValues[i])
+                for i in textStats:
+                    if i in fullStatsList and i not in partStats and componentName not in ['Ordnance Launcher','Ordnance Pack']:
+                        alert("Alert",["You appear to have pasted stats from a different component type than the one selected."],[],3)
+                        break
                 if componentName in ['Ordnance Launcher','Ordnance Pack']:
                     ordnanceData = cur.execute("SELECT * FROM ordnance").fetchall()
                     massValue = 0
@@ -2368,8 +2434,6 @@ def createComponent(componentName, *editArgs):
 
                 partStats = lookup[1:9] #removes the entry added for ordnance ID
 
-                textStats = ['Minimum Damage' if x == 'Damage - Minimum' else x for x in textStats]
-                textStats = ['Maximum Damage' if x == 'Damage - Maximum' else x for x in textStats]
                 try:
                     armorValue = float(textValues[textStats.index('Armor')])
                 except:
@@ -2509,6 +2573,7 @@ def createComponent(componentName, *editArgs):
                 else:
                     try:
                         cur2.execute("INSERT INTO " + compName + "(" + statString + ") VALUES(" + bindings + ")", stats)
+                        newName = stats[0]
                         compUpdate = True
                         break
                     except:
@@ -2517,6 +2582,7 @@ def createComponent(componentName, *editArgs):
                         if decision == "Proceed":
                             try:
                                 cur2.execute("INSERT OR REPLACE INTO " + compName + "(" + statString + ") VALUES(" + bindings + ")", stats)
+                                newName = stats[0]
                                 compUpdate = True
                             except:
                                 alert('Error',['Error: An unknown issue occurred when attempting to save this component. Make a post on my Discord detailing what happened so I can investigate.','-Seraph'],[],10)
@@ -2532,17 +2598,10 @@ def createComponent(componentName, *editArgs):
             break
 
     compdb.commit()
-    compdb.close()
-    db.close()
     addComponentWindow.close()
     return compUpdate, newName
 
 def getComponentStats():
-
-    db = sqlite3.connect("file:Data\\tables.db?mode=ro", uri=True)
-    cur = db.cursor()
-    compdb = sqlite3.connect("file:Data\\savedata.db?mode=rw", uri=True)
-    cur2 = compdb.cursor()
 
     components = listify(cur.execute("SELECT type FROM component").fetchall())
     componentArray = []
@@ -2552,24 +2611,18 @@ def getComponentStats():
         componentArray.append(cur2.execute("SELECT * FROM " + i + " ORDER BY name ASC").fetchall())
         componentNames.append(listify(componentArray[-1]))
 
-    db.close()
-    compdb.close()
-
     return components, componentNames, componentArray
 
 def updateStatPreview(componentWindow, values):
-            
-    db = sqlite3.connect("file:Data\\tables.db?mode=ro", uri=True)
-    cur = db.cursor()
-    compdb = sqlite3.connect("file:Data\\savedata.db?mode=rw", uri=True)
-    cur2 = compdb.cursor()
 
     [components, componentNames, componentArray] = getComponentStats()
 
-    partList = componentNames[components.index(values['comptypeselect'][0])]
+    componentName = values['complistbox'][0]
     componentType = values['comptypeselect'][0]
-    index1 = components.index(values['comptypeselect'][0])
-    index2 = partList.index(values['complistbox'][0])
+    partList = componentNames[components.index(componentType)]
+    index1 = components.index(componentType)
+    index2 = partList.index(componentName)
+    componentWindow['partname'].update(componentName)
     componentWindow['parttype'].update(componentType)
     statList = list(cur.execute("SELECT * FROM component WHERE type = ?", [componentType]).fetchall()[0][17:35])
     statValues = componentArray[index1][index2][1:]
@@ -2591,7 +2644,6 @@ def updateStatPreview(componentWindow, values):
         componentWindow['stat5'].update(componentWindow['stat4'].get())
         componentWindow['stat4'].update(componentWindow['stat3'].get())
 
-    componentName = values['complistbox'][0]
     entries = ['armor1', 'armor2', 'booster', 'capacitor', 'cargohold', 'droidinterface', 'engine', 'reactor', 'shield', 'slot1', 'slot2', 'slot3', 'slot4', 'slot5', 'slot6', 'slot7', 'slot8', 'pack1', 'pack2', 'pack3', 'pack4', 'pack5', 'pack6', 'pack7', 'pack8']
     loadoutList = ""
     for i in entries:
@@ -2603,23 +2655,24 @@ def updateStatPreview(componentWindow, values):
 
     componentWindow.refresh()
 
-    db.close()
     return componentType, statValues
 
 def clearStatPreview(componentWindow):
     componentWindow['parttype'].update("")
+    componentWindow['partname'].update("")
     for i in range(1, 9):
         componentWindow['stat' + str(i) + 'text'].update("")
         componentWindow['stat' + str(i)].update("")
+    componentWindow['loadoutlist'].update("")
     componentWindow.refresh()
 
-def manageComponents():
+def componentLibrary():
     sg.theme('Discord_Dark')
 
-    compdb = sqlite3.connect("file:Data\\savedata.db?mode=rw", uri=True)
-    cur2 = compdb.cursor()
+    compLib = [list(x) for x in cur.execute("SELECT * FROM complib").fetchall()]
 
-    [components, componentNames, componentArray] = getComponentStats()
+    components = [x[0] for x in cur.execute('SELECT type FROM component').fetchall()]
+    componentStats = [list(x) for x in cur.execute('SELECT stat1disp, stat2disp, stat3disp, stat4disp, stat5disp, stat6disp, stat7disp, stat8disp FROM component').fetchall()]
 
     leftColumn = [
         [sg.Push(),sg.Text("Select Component Type", font=baseFont, p=fontPadding),sg.Push()],
@@ -2630,7 +2683,7 @@ def manageComponents():
     centerColumn = [
         [sg.Push(),sg.Text("Select Component", font=baseFont, p=fontPadding),sg.Push()],
         [sg.VPush()],
-        [sg.Listbox(values=[], key='complistbox', size=(40,13), font=baseFont, enable_events=True, select_mode='single')],
+        [sg.Listbox(values=[], key='complistbox', size=(40,13), font=baseFont, enable_events=True, select_mode='extended')],
         [sg.VPush()],
     ]
 
@@ -2668,6 +2721,158 @@ def manageComponents():
         [sg.VPush()]
     ]
 
+    Layout = [
+        [sg.Push(), sg.Text("Component Library", font=headerFont), sg.Push()],
+        [sg.vtop(sg.Frame('',leftColumn, border_width=0,p=elementPadding,s=(200,250),element_justification='center')), sg.vtop(sg.Frame('',centerColumn, border_width=0,p=elementPadding,s=(300,250),element_justification='center')), sg.vtop(sg.Frame('',rightCenterColumn, border_width=0,p=elementPadding,s=(250,250),element_justification='center'))],
+        [sg.VPush()],
+        [sg.Push(),sg.Push(),sg.Button("Add Selected Components",font=buttonFont),sg.Push(),sg.Button("Exit",font=buttonFont),sg.Push(),sg.Push()],
+        [sg.VPush()]
+    ]
+
+    compLibWindow = sg.Window('Component Library', Layout, modal=True, finalize=True, icon=os.path.abspath(os.path.join(os.path.dirname(__file__), 'SLT_Icon.ico')))
+    compLibWindow.bind('<Escape>', 'Exit')
+
+    compSelectBuffer = []
+
+    while True:
+        event, values = compLibWindow.read()
+
+        if event == 'comptypeselect':
+            selectedCompType = values['comptypeselect'][0]
+            compType = values['comptypeselect'][0].lower().replace(" ","").replace("/","").replace(".","")
+            inUseList = [x[2:] for x in [y[0] for y in cur2.execute("SELECT name FROM " + compType).fetchall()] if '¤' in x]
+            compList = [x[1] for x in compLib if x[0] == selectedCompType and x[1] not in inUseList]
+            compLibWindow['complistbox'].update(compList)
+            compSelectBuffer = []
+
+        if event == 'complistbox':
+            try:
+                selections = [compList.index(x) for x in values['complistbox']]
+                newSelections = [x for x in selections if x not in compSelectBuffer]
+                if newSelections != [] and compSelectBuffer != [] and any([x for x in selections if x in compSelectBuffer]):
+                    if min(newSelections) < min(compSelectBuffer):
+                        compSelectBuffer = compSelectBuffer + newSelections[::-1]
+                    else:
+                        compSelectBuffer = compSelectBuffer + newSelections
+                elif compSelectBuffer != []:
+                    if len(compSelectBuffer) == 1 and len(selections) == 1 and compSelectBuffer != selections:
+                        compSelectBuffer = selections
+                    elif len(selections) == 1 and selections[0] not in compSelectBuffer:
+                        compSelectBuffer = selections
+                    elif min(selections) < min(compSelectBuffer) and compSelectBuffer != []:
+                        compSelectBuffer = [x for x in compSelectBuffer if x in selections][::-1]
+                    else:
+                        compSelectBuffer = [x for x in compSelectBuffer if x in selections]                
+                else:
+                    compSelectBuffer = selections
+
+                selectedComp = compSelectBuffer[-1]
+                compName = compList[selectedComp]
+                compStatNames = componentStats[components.index(values['comptypeselect'][0])]
+                compLibWindow['parttype'].update(compName)
+                compStats = [tryFloatRetainPrecision(x) if tryFloat(x) > 0  else x for x in [x[2:] for x in compLib if x[1] == compName][0]]
+                for i in range(1,9):
+                    try:
+                        compLibWindow['stat' + str(i) + 'text'].update(compStatNames[i-1])
+                        if compStats[i-1] not in [0, '']:
+                            if compStatNames[i-1] in ['Vs. Shields:','Vs. Armor:','Refire Rate:']:
+                                statValue = '{:.3f}'.format(tryFloat(compStats[i-1]))
+                            elif compStatNames[i-1] == 'Ammo:':
+                                statValue = int(tryFloat(compStats[i-1]))
+                            elif compStatNames[i-1] == 'Type:':
+                                statValue = compStats[i-1]
+                            else:
+                                statValue = '{:.1f}'.format(tryFloat(compStats[i-1]))
+                        else:
+                            statValue = ''
+                        compLibWindow['stat' + str(i)].update(statValue)
+                    except:
+                        pass
+
+                if values['comptypeselect'][0] == 'Shield':
+                    compLibWindow['stat4'].update(compStats[2])
+                    compLibWindow['stat5'].update('{:.2f}'.format(tryFloat(compStats[3])))
+            except:
+                pass
+
+        if event == 'Add Selected Components':
+            compType = values['comptypeselect'][0].lower().replace(" ","").replace("/","").replace(".","")
+            compList = values['complistbox']
+            compStatNames = [x.lower().replace(" ", "").replace("/", "").replace(".", "") for x in cur.execute('SELECT * FROM component WHERE type = ?',values['comptypeselect']).fetchall()[0][1:] if (x != '' and len(x) > 2 and ':' not in x)]
+            bindings = ('?, ' * (len(compStatNames)+1))[:-2]
+            statString = 'name, '
+            for i in compStatNames:
+                statString += i + ', '
+            statString = statString[:-2]
+            addList = [[y for y in x[1:] if y != ''] for x in compLib if x[1] in compList]
+            for i in range(len(addList)):
+                addList[i][0] = '¤ ' + addList[i][0]
+            cur2.executemany("INSERT OR REPLACE INTO " + compType + "(" + statString + ") VALUES(" + bindings + ")", addList)
+            compdb.commit()
+
+            inUseList = [x[2:] for x in [y[0] for y in cur2.execute("SELECT name FROM " + compType).fetchall()] if '¤' in x]
+            compList = [x[1] for x in compLib if x[0] == selectedCompType and x[1] not in inUseList]
+            compLibWindow['complistbox'].update(compList)
+
+        if event == "Exit" or event == sg.WIN_CLOSED:
+            break
+    
+    compLibWindow.close()
+
+def manageComponents():
+    sg.theme('Discord_Dark')
+
+    [components, componentNames, componentArray] = getComponentStats()
+
+    leftColumn = [
+        [sg.Push(),sg.Text("Select Component Type", font=baseFont, p=fontPadding),sg.Push()],
+        [sg.VPush()],
+        [sg.Listbox(values=components, size=(24, 13), enable_events=True, key='comptypeselect', justification='center', no_scrollbar=True, font=baseFont, select_mode="single")],
+        [sg.VPush()],
+    ]
+    centerColumn = [
+        [sg.Push(),sg.Text("Select Component", font=baseFont, p=fontPadding),sg.Push()],
+        [sg.VPush()],
+        [sg.Listbox(values=[], key='complistbox', size=(40,13), font=baseFont, enable_events=True, select_mode='extended')], #extended select mode allows for selecting multiple items with ctrl/shift as in windows explorer
+        [sg.VPush()],
+    ]
+
+    statPreviewText = [
+        [sg.Push(),sg.Text("",font=baseFont,key='stat1text', p=fontPadding, justification='right')],
+        [sg.Push(),sg.Text("",font=baseFont,key='stat2text', p=fontPadding, justification='right')],
+        [sg.Push(),sg.Text("",font=baseFont,key='stat3text', p=fontPadding, justification='right')],
+        [sg.Push(),sg.Text("",font=baseFont,key='stat4text', p=fontPadding, justification='right')],
+        [sg.Push(),sg.Text("",font=baseFont,key='stat5text', p=fontPadding, justification='right')],
+        [sg.Push(),sg.Text("",font=baseFont,key='stat6text', p=fontPadding, justification='right')],
+        [sg.Push(),sg.Text("",font=baseFont,key='stat7text', p=fontPadding, justification='right')],
+        [sg.Push(),sg.Text("",font=baseFont,key='stat8text', p=fontPadding, justification='right')],
+    ]
+
+    statPreviewStats = [
+        [sg.Text("",font=baseFont,key='stat1', p=fontPadding)],
+        [sg.Text("",font=baseFont,key='stat2', p=fontPadding)],
+        [sg.Text("",font=baseFont,key='stat3', p=fontPadding)],
+        [sg.Text("",font=baseFont,key='stat4', p=fontPadding)],
+        [sg.Text("",font=baseFont,key='stat5', p=fontPadding)],
+        [sg.Text("",font=baseFont,key='stat6', p=fontPadding)],
+        [sg.Text("",font=baseFont,key='stat7', p=fontPadding)],
+        [sg.Text("",font=baseFont,key='stat8', p=fontPadding)],
+    ]
+
+    statFrame = [
+        [sg.Push(),sg.Text("",font=baseFont,key='partname',p=fontPadding), sg.Push()],
+        [sg.Push(),sg.Text("",font=baseFont,key='parttype',p=fontPadding), sg.Push()],
+        [sg.VPush()],
+        [sg.Frame('', statPreviewText, border_width=0, s=(110,250), p=elementPadding),sg.Frame('', statPreviewStats, border_width=0, s=(134,250), p=elementPadding)]
+    ]
+
+    rightCenterColumn = [
+        [sg.Push(),sg.Text("Stat Preview", font=baseFont), sg.Push()],
+        [sg.VPush()],
+        [sg.Frame('', statFrame, border_width=0, s=(235,250))],
+        [sg.VPush()]
+    ]
+
     loadoutColumn = [
         [sg.Push(), sg.Text("Used in These Loadouts", font=baseFont), sg.Push()],
         [sg.VPush()],
@@ -2679,7 +2884,7 @@ def manageComponents():
         [sg.Push(), sg.Text("Manage Components", font=headerFont), sg.Push()],
         [sg.vtop(sg.Frame('',leftColumn, border_width=0,p=elementPadding,s=(200,250),element_justification='center')), sg.vtop(sg.Frame('',centerColumn, border_width=0,p=elementPadding,s=(300,250),element_justification='center')), sg.vtop(sg.Frame('',rightCenterColumn, border_width=0,p=elementPadding,s=(250,250),element_justification='center')),sg.vtop(sg.Frame('',loadoutColumn, border_width=0,p=elementPadding,s=(225,250),element_justification='center'))],
         [sg.VPush()],
-        [sg.Push(),sg.Push(),sg.Button("Add",font=buttonFont),sg.Push(),sg.Button("Edit",font=buttonFont),sg.Push(),sg.Button("Delete",font=buttonFont),sg.Push(),sg.Button("Exit",font=buttonFont),sg.Push(),sg.Push()],
+        [sg.Push(),sg.Push(),sg.Button("Add New",font=buttonFont),sg.Push(),sg.Button("Add from Library",font=buttonFont),sg.Push(),sg.Button("Edit",font=buttonFont),sg.Push(),sg.Button("Delete",font=buttonFont),sg.Push(),sg.Button("Exit",font=buttonFont),sg.Push(),sg.Push()],
         [sg.VPush()]
     ]
 
@@ -2687,92 +2892,211 @@ def manageComponents():
     componentWindow.bind('<Escape>', 'Exit')
 
     modified = False
+    compSelectBuffer = []
+
+    [components, componentNames, componentArray] = getComponentStats()
 
     while True:
         event, values = componentWindow.read()
         if event == 'comptypeselect':
-            [components, componentNames, componentArray] = getComponentStats()
             partList = componentNames[components.index(values['comptypeselect'][0])]
             componentWindow['complistbox'].update(values=partList)
+            compSelectBuffer = []
+            clearStatPreview(componentWindow)
 
         if event == 'complistbox':
-            for i in range(1, 9):
-                try:
-                    componentWindow['stat' + str(i) + 'text'].update("")
-                    componentWindow['stat' + str(i)].update("")
-                except:
-                    pass
-            
-            if values['complistbox'] != []:
-                updateStatPreview(componentWindow, values)
-
-        if event == "Add":
             try:
+                componentType = values['comptypeselect'][0]
+                selections = [partList.index(x) for x in values['complistbox']]
+                newSelections = [x for x in selections if x not in compSelectBuffer]
+                if newSelections != [] and compSelectBuffer != [] and any([x for x in selections if x in compSelectBuffer]):
+                    if min(newSelections) < min(compSelectBuffer):
+                        compSelectBuffer = compSelectBuffer + newSelections[::-1]
+                    else:
+                        compSelectBuffer = compSelectBuffer + newSelections
+                elif compSelectBuffer != []:
+                    if len(compSelectBuffer) == 1 and len(selections) == 1 and compSelectBuffer != selections:
+                        compSelectBuffer = selections
+                    elif len(selections) == 1 and selections[0] not in compSelectBuffer:
+                        compSelectBuffer = selections
+                    elif min(selections) < min(compSelectBuffer) and compSelectBuffer != []:
+                        compSelectBuffer = [x for x in compSelectBuffer if x in selections][::-1]
+                    else:
+                        compSelectBuffer = [x for x in compSelectBuffer if x in selections]                
+                else:
+                    compSelectBuffer = selections
+
+                selectedComp = compSelectBuffer[-1]
+                compName = partList[selectedComp]
+
+                index1 = components.index(componentType)
+                index2 = partList.index(compName)
+                componentWindow['partname'].update(compName)
+                componentWindow['parttype'].update(componentType)
+                statList = list(cur.execute("SELECT * FROM component WHERE type = ?", [componentType]).fetchall()[0][17:35])
+                statValues = componentArray[index1][index2][1:]
+
+                for i in range(1,9):
+                    try:
+                        componentWindow['stat' + str(i) + 'text'].update(statList[i-1])
+                        if statList[i-1] in ['Vs. Shields:','Vs. Armor:','Refire Rate:']:
+                            statValue = '{:.3f}'.format(tryFloat(statValues[i-1]))
+                        elif statList[i-1] == 'Ammo:':
+                            statValue = int(tryFloat(statValues[i-1]))
+                        elif statList[i-1] == 'Type:':
+                            statValue = statValues[i-1]
+                        else:
+                            statValue = '{:.1f}'.format(tryFloat(statValues[i-1]))
+                        componentWindow['stat' + str(i)].update(statValue)
+                    except:
+                        pass
+
+                if values['comptypeselect'][0] == 'Shield':
+                    componentWindow['stat4'].update(statValues[2])
+                    componentWindow['stat5'].update('{:.2f}'.format(tryFloat(statValues[3])))
+
+                entries = ['armor1', 'armor2', 'booster', 'capacitor', 'cargohold', 'droidinterface', 'engine', 'reactor', 'shield', 'slot1', 'slot2', 'slot3', 'slot4', 'slot5', 'slot6', 'slot7', 'slot8', 'pack1', 'pack2', 'pack3', 'pack4', 'pack5', 'pack6', 'pack7', 'pack8']
+                loadoutList = ""
+                for i in entries:
+                    loadouts = cur2.execute("SELECT name FROM loadout WHERE " + i + "= ?", [compName]).fetchall()
+                    for j in loadouts:
+                        if j[0] not in loadoutList:
+                            loadoutList += j[0] + "\n"
+                componentWindow['loadoutlist'].update(loadoutList)
+            except:
+                pass
+
+        if event == "Add New":
+            try:
+                lastSelection = componentWindow['partname'].get()
                 modified, newName = createComponent(values['comptypeselect'][0])
-                [components, componentNames, componentArray] = getComponentStats() 
+                [components, componentNames, componentArray] = getComponentStats()
                 partList = componentNames[components.index(values['comptypeselect'][0])]
-                componentWindow['complistbox'].update(values=partList)
+                componentWindow['complistbox'].update(partList)
+                if modified:
+                    componentWindow['complistbox'].set_value(newName)
+                else:
+                    try:
+                        componentWindow['complistbox'].set_value(lastSelection)
+                    except:
+                        pass
+                event, values = componentWindow.read(timeout=0)
+                if values['complistbox'] != []:
+                    updateStatPreview(componentWindow, values)
             except:
                  alert('Error',['Error: Please select a component type.'],[],3)
             remodalize(componentWindow)
-            
-        if event == "Edit":
+        
+        if event == "Add from Library":
+            lastSelection = componentWindow['partname'].get()
+            componentLibrary()
+            remodalize(componentWindow)
+            [components, componentNames, componentArray] = getComponentStats() 
             try:
-                [componentType, statValues] = updateStatPreview(componentWindow, values)
-                try: 
-                    event, values = componentWindow.read(timeout=0)
-                    editArgs = values['complistbox'] + [componentWindow['stat1'].get(),componentWindow['stat2'].get(),componentWindow['stat3'].get(),componentWindow['stat4'].get(),componentWindow['stat5'].get(), componentWindow['stat6'].get(),componentWindow['stat7'].get(),componentWindow['stat8'].get()]
-                    if componentType == 'Shield':
-                        editArgs[4] = editArgs[5]
-                        editArgs[5] = ''
-                    modified, newName = createComponent(componentType, editArgs)
-                    [components, componentNames, componentArray] = getComponentStats() 
-                    partList = componentNames[components.index(values['comptypeselect'][0])]
-                    componentWindow['complistbox'].update(values=partList)
-                    componentWindow['complistbox'].set_value(newName)
-                    event, values = componentWindow.read(timeout=0)
-                    updateStatPreview(componentWindow, values)
-                except:
-                    pass
+                partList = componentNames[components.index(values['comptypeselect'][0])]
+                componentWindow['complistbox'].update(partList)
             except:
+                pass
+            try:
+                componentWindow['complistbox'].set_value(lastSelection)
+            except:
+                pass
+
+        if event == "Edit":
+            if len(values['complistbox']) > 1:
+                alert('Error',['Error: You may only edit one component at a time.'],[],3)
+            elif len(values['complistbox']) == 0:
                 alert('Error',['Error: Please select a component to edit.'],[],3)
+            elif '¤' in values['complistbox'][0]:
+                alert('Error',['Error: You cannot edit library components.'],[],3)
+            else:
+                try:
+                    [componentType, statValues] = updateStatPreview(componentWindow, values)
+                    try: 
+                        event, values = componentWindow.read(timeout=0)
+                        editArgs = [componentWindow['partname'].get(),componentWindow['stat1'].get(),componentWindow['stat2'].get(),componentWindow['stat3'].get(),componentWindow['stat4'].get(),componentWindow['stat5'].get(), componentWindow['stat6'].get(),componentWindow['stat7'].get(),componentWindow['stat8'].get()]
+                        if componentType == 'Shield':
+                            editArgs[4] = editArgs[5]
+                            editArgs[5] = ''
+                        modified, newName = createComponent(componentType, editArgs)
+                        [components, componentNames, componentArray] = getComponentStats() 
+                        partList = componentNames[components.index(values['comptypeselect'][0])]
+                        componentWindow['complistbox'].update(partList)
+                        componentWindow['complistbox'].set_value(newName)
+                        event, values = componentWindow.read(timeout=0)
+                        updateStatPreview(componentWindow, values)
+                    except:
+                        pass
+                except:
+                    alert('Error',['Error: Please select a component to edit.'],[],3)
             remodalize(componentWindow)
 
         if event == "Delete":
             event, values = componentWindow.read(timeout=0)
             componentType = componentWindow['parttype'].get()
-            try:
-                componentName = values['complistbox'][0]
-                result = alert('Alert',["You are attempting to delete the component named '" + componentName + ".'",'This cannot be undone. Do you wish to proceed?'],['Proceed','Cancel'],0)
-                remodalize(componentWindow)
-                if result == "Proceed":
-                    componentType = componentType.lower().replace(" ","").replace("/","").replace(".","")
-                    cur2.execute("DELETE FROM " + componentType + " WHERE name = ?", [componentName])
-                    if componentType == 'ordnancepack' or componentType == 'countermeasurepack':
-                        for i in range(1, 9):
-                            cur2.execute("UPDATE loadout SET pack" + str(i) + " = '' WHERE pack" + str(i) + " = ?", [componentName])
-                    elif componentType == 'ordnancelauncher' or componentType == 'countermeasurelauncher' or componentType == 'weapon':
-                        for i in range(1, 9):
-                            cur2.execute("UPDATE loadout SET pack" + str(i) + " = '' WHERE slot" + str(i) + " = ?", [componentName])
-                            cur2.execute("UPDATE loadout SET slot" + str(i) + " = '' WHERE slot" + str(i) + " = ?", [componentName])
+            if len(values['complistbox']) == 1:
+                try:
+                    componentName = values['complistbox'][0]
+                    if '¤' not in componentName:
+                        result = alert('Alert',["You are about to delete the component named '" + componentName + ".'",'This cannot be undone. Do you wish to proceed?'],['Proceed','Cancel'],0)
+                        remodalize(componentWindow)
                     else:
-                        entries = ['armor1', 'armor2', 'booster', 'capacitor', 'cargohold', 'droidinterface', 'engine', 'reactor', 'shield', 'slot1', 'slot2', 'slot3', 'slot4', 'slot5', 'slot6', 'slot7', 'slot8', 'pack1', 'pack2', 'pack3', 'pack4', 'pack5', 'pack6', 'pack7', 'pack8']
-                        for i in entries:    
-                            cur2.execute("UPDATE loadout SET " + i + " = '' WHERE " + i + " = ?", [componentName])
-                compdb.commit()
-                compdb.close()
+                        result = 'Proceed'
+                    if result == "Proceed":
+                        componentType = componentType.lower().replace(" ","").replace("/","").replace(".","")
+                        cur2.execute("DELETE FROM " + componentType + " WHERE name = ?", [componentName])
+                        if componentType == 'ordnancepack' or componentType == 'countermeasurepack':
+                            for i in range(1, 9):
+                                cur2.execute("UPDATE loadout SET pack" + str(i) + " = '' WHERE pack" + str(i) + " = ?", [componentName])
+                        elif componentType == 'ordnancelauncher' or componentType == 'countermeasurelauncher' or componentType == 'weapon':
+                            for i in range(1, 9):
+                                cur2.execute("UPDATE loadout SET pack" + str(i) + " = '' WHERE slot" + str(i) + " = ?", [componentName])
+                                cur2.execute("UPDATE loadout SET slot" + str(i) + " = '' WHERE slot" + str(i) + " = ?", [componentName])
+                        else:
+                            entries = ['armor1', 'armor2', 'booster', 'capacitor', 'cargohold', 'droidinterface', 'engine', 'reactor', 'shield', 'slot1', 'slot2', 'slot3', 'slot4', 'slot5', 'slot6', 'slot7', 'slot8', 'pack1', 'pack2', 'pack3', 'pack4', 'pack5', 'pack6', 'pack7', 'pack8']
+                            for i in entries:    
+                                cur2.execute("UPDATE loadout SET " + i + " = '' WHERE " + i + " = ?", [componentName])
+                    compdb.commit()
 
-                [components, componentNames, componentArray] = getComponentStats() 
-                partList = componentNames[components.index(values['comptypeselect'][0])]
-                componentWindow['complistbox'].update(values=partList)
-                clearStatPreview(componentWindow)
-                modified = True
+                    [components, componentNames, componentArray] = getComponentStats() 
+                    partList = componentNames[components.index(values['comptypeselect'][0])]
+                    componentWindow['complistbox'].update(values=partList)
+                    clearStatPreview(componentWindow)
+                    modified = True
+                except:
+                    pass
+            elif len(values['complistbox']) > 1:
+                try:
+                    compNames = values['complistbox']
+                    if any(['¤' not in x for x in compNames]):
+                        result = alert('Alert',['You are about to delete ALL of the selected components.','This cannot be undone. Do you wish to proceed?'],['Proceed','Cancel'],0)
+                        remodalize(componentWindow)
+                    else:
+                        result = 'Proceed'
+                    if result == "Proceed":
+                        componentType = componentType.lower().replace(" ","").replace("/","").replace(".","")
+                        for componentName in compNames:
+                            cur2.execute("DELETE FROM " + componentType + " WHERE name = ?", [componentName])
+                            if componentType == 'ordnancepack' or componentType == 'countermeasurepack':
+                                for i in range(1, 9):
+                                    cur2.execute("UPDATE loadout SET pack" + str(i) + " = '' WHERE pack" + str(i) + " = ?", [componentName])
+                            elif componentType == 'ordnancelauncher' or componentType == 'countermeasurelauncher' or componentType == 'weapon':
+                                for i in range(1, 9):
+                                    cur2.execute("UPDATE loadout SET pack" + str(i) + " = '' WHERE slot" + str(i) + " = ?", [componentName])
+                                    cur2.execute("UPDATE loadout SET slot" + str(i) + " = '' WHERE slot" + str(i) + " = ?", [componentName])
+                            else:
+                                entries = ['armor1', 'armor2', 'booster', 'capacitor', 'cargohold', 'droidinterface', 'engine', 'reactor', 'shield', 'slot1', 'slot2', 'slot3', 'slot4', 'slot5', 'slot6', 'slot7', 'slot8', 'pack1', 'pack2', 'pack3', 'pack4', 'pack5', 'pack6', 'pack7', 'pack8']
+                                for i in entries:    
+                                    cur2.execute("UPDATE loadout SET " + i + " = '' WHERE " + i + " = ?", [componentName])
+                    compdb.commit()
 
-                compdb = sqlite3.connect("file:Data\\savedata.db?mode=rw", uri=True)
-                cur2 = compdb.cursor()
-
-            except:
-                pass
+                    [components, componentNames, componentArray] = getComponentStats()
+                    partList = componentNames[components.index(values['comptypeselect'][0])]
+                    componentWindow['complistbox'].update(values=partList)
+                    clearStatPreview(componentWindow)
+                    modified = True
+                except:
+                    pass
 
         if event == "Exit" or event == sg.WIN_CLOSED:
             break
@@ -2784,9 +3108,6 @@ def doExitSave(window):
     event, values = window.read(timeout=0)
 
     chassis = window['loadoutname'].get()
-
-    compdb = sqlite3.connect("file:Data\\savedata.db?mode=rw", uri=True)
-    cur2 = compdb.cursor()
 
     try:
         loadout = list(cur2.execute("SELECT * FROM loadout WHERE name = ?", [chassis]).fetchall()[0])
@@ -2828,16 +3149,12 @@ def doExitSave(window):
         cur2.execute("INSERT INTO exitsave VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", exitSave)
 
         compdb.commit()
-        compdb.close()
 
         return True
     except:
         return False
 
 def loadExitSave(window):
-
-    compdb = sqlite3.connect("file:Data\\savedata.db?mode=rw", uri=True)
-    cur2 = compdb.cursor()
 
     try:
         loadoutData = cur2.execute("SELECT * FROM exitsave").fetchall()[0]
@@ -2906,20 +3223,15 @@ def loadExitSave(window):
 
         window.refresh()
 
-        compdb.close()
         return loadoutData[1], loadoutData[2], True
     
     except:
-        compdb.close()
         return "", "", False
 
 def updateProfile(window):
     events, values = window.read(timeout=0)
 
     chassis = window['chassistype'].get()
-
-    tables = sqlite3.connect("file:Data\\tables.db?mode=ro", uri=True)
-    cur = tables.cursor()
 
     if chassis != '':
         [minThrottle, optThrottle, maxThrottle] = cur.execute("SELECT minthrottle, optthrottle, maxthrottle FROM chassis WHERE name = ?", [chassis]).fetchall()[0]
@@ -2985,20 +3297,49 @@ def updateProfile(window):
 
     window.refresh()
 
-    tables.close()
-
 def main():
+
+    ### Updates deprecated file structure and sets up saved data storage if needed ###
+
+    #Checks for existing Data\savedata.db files and moves them to their new home in Appdata. If there is no active savedata.db file, creates a new one in appdata. Deletes deprecated Data folder if it exists and has a tables.db file in it.
+    try:
+        dataDir = os.getenv('APPDATA') + "\\Seraph's Loadout Tool"
+
+        if not os.path.exists(dataDir):
+            os.makedirs(dataDir)
+
+        if os.path.exists('Data\\savedata.db'):
+            shutil.move('Data\\savedata.db', dataDir + '\\savedata.db')
+        else:
+            buildComponentList(dataDir)
+    except:
+        alert('Fatal Error',['Fatal error when attempting to create or relocate savedata.db. Unable to find destination folder','If you are seeing this message, please contact me ASAP - Seraph'],['Okay',0])
+        return
+
+    if os.path.exists('Data\\tables.db'): #Clears tables.db as it will now be included in the exe.
+        os.remove('Data\\tables.db')
+        empty = True
+        for x in os.scandir('Data'): #Deletes the Data folder if it's empty (which by now it should be assuming the user didn't put anything else in there)
+            empty = False
+            break
+        if empty:
+            os.removedirs("Data")
+
+    #Connect to databases
+
+    global tables
+    global cur
+    global compdb
+    global cur2
+
+    tables = sqlite3.connect('file:tables.db?mode=ro', uri=True)
+    cur = tables.cursor()
+
+    compdb = sqlite3.connect('file:'+ dataDir +'\\savedata.db?mode=rw', uri=True)
+    cur2 = compdb.cursor()
+
     if __name__ == '__main__':
         multiprocessing.freeze_support()
-
-        if not os.path.exists("Data\\tables.db"):
-            buildTables(currentVersion)
-
-        if not os.path.exists("Data\\savedata.db"):
-            buildComponentList()
-
-        compdb = sqlite3.connect("file:Data\\savedata.db?mode=rw", uri=True)
-        cur2 = compdb.cursor()
 
         #Cludgy catch to try and see if there are any read-write permission errors on the user's computer at launch before it becomes a hang or crash.
 
@@ -3006,7 +3347,7 @@ def main():
             cur2.execute("CREATE TABLE test (test)")
             cur2.execute("DROP TABLE test")
         except:
-            alert('Error',["Error: You do not appear to have permission to write data to the tool's database files.","Try right-clicking the application icon and selecting 'Run as Administrator'."],[],10)
+            alert('Fatal Error',["Fatal Error: You do not appear to have permission to write data to the tool's database files.","Try right-clicking the application icon and selecting 'Run as Administrator'."],[],10)
             return
 
         loadouts = cur2.execute("SELECT * from loadout").fetchall()
@@ -3020,14 +3361,14 @@ def main():
         menu_def = [
             ['&Loadout', ['&New Loadout', openLoadoutString, '!&Save Loadout', 'E&xit']],
             ['&Components', ['Add and &Manage Components', '!&Clear All Components']],
-            ['&Tools', ['&Reverse Engineering Calculator','&Flight Computer Calculator','&Loot Lookup Tool (WIP)','&Import v1.x Data', '&Check for Updates']],
+            ['&Tools', ['&Reverse Engineering Calculator','&Flight Computer Calculator','&Loot Lookup Tool','&Import v1.x Data', '&Check for Updates']],
             ['&Help', ['&About','&Keyboard Shortcuts']]
         ]
 
         menu_def_save_enabled = [
             ['Loadout', ['&New Loadout', '&Open Loadout', '&Save Loadout', 'E&xit']],
             ['Components', ['Add and &Manage Components', '&Clear All Components']],
-            ['&Tools', ['&Reverse Engineering Calculator','&Flight Computer Calculator','&Loot Lookup Tool (WIP)','&Import v1.x Data', '&Check for Updates']],
+            ['&Tools', ['&Reverse Engineering Calculator','&Flight Computer Calculator','&Loot Lookup Tool','&Import v1.x Data', '&Check for Updates']],
             ['Help', ['&About','&Keyboard Shortcuts']]
         ]
 
@@ -3771,7 +4112,7 @@ def main():
         signatureFrame = [
             [sg.VPush()],
             [sg.Push(),sg.Text("Seraph's Loadout Tool v" + currentVersion, font=baseFont, p=fontPadding),sg.Push()],
-            [sg.Push(),sg.Text("©2025 SeraphExodus", font=baseFont, p=fontPadding),sg.Push()],
+            [sg.Push(),sg.Text("©2026 SeraphExodus", font=baseFont, p=fontPadding),sg.Push()],
             [sg.VPush()],
             [sg.Push(),sg.Text("Use Ctrl + C to take a screenshot!", font=baseFont, p=fontPadding),sg.Push()],
             [sg.VPush()]
@@ -3794,7 +4135,7 @@ def main():
             [sg.vtop(sg.Column(leftPane, background_color=bgColor, p=0)),sg.vtop(sg.Column(rightPane, background_color=bgColor, p=0))],
         ]
 
-        window = sg.Window("Seraph's Loadout Tool v2.0 Alpha",layout, finalize=True, background_color=bgColor, icon=os.path.abspath(os.path.join(os.path.dirname(__file__), 'SLT_Icon.ico')), margins=(elementPadding, elementPadding), enable_close_attempted_event=True)
+        window = sg.Window("Seraph's Loadout Tool V" + currentVersion,layout, finalize=True, background_color=bgColor, icon=os.path.abspath(os.path.join(os.path.dirname(__file__), 'SLT_Icon.ico')), margins=(elementPadding, elementPadding), enable_close_attempted_event=True)
         move_center(window)
 
         chassis = ''
@@ -3951,7 +4292,7 @@ def main():
                     clearLoadout(window, "parts")
 
             if event == 'Capture Screenshot':
-                appWindow = FindWindow(None, "Seraph's Loadout Tool v2.0 Alpha")
+                appWindow = FindWindow(None, "Seraph's Loadout Tool V" + currentVersion)
                 rect = GetWindowRect(appWindow)
                 if throttleProfileCaptureMode:
                     rect = (rect[0]+8+1123+36, rect[1]+51+235+195+8+8+8+1+28, rect[2]-8-8-35, rect[3]-8-87-8-8-7)
@@ -4046,18 +4387,17 @@ def main():
                 reCalcProcess.daemon = True
                 reCalcProcess.start()
 
-            if event == 'Loot Lookup Tool (WIP)':
-                lltConfirm = alert("Notice",['This release of the loot lookup tool is a work-in-progress version. As such, I cannot completely guarantee its accuracy or stability.','Please let me know of any errors, crashes, or usability issues you encounter so I can address them.','-Seraph'],['Got it!'],0)
-                if lltConfirm == 'Got it!':
-                    lootLookupProcess = multiprocessing.Process(target=lootLookup,args=())
-                    lootLookupProcess.daemon = True
-                    lootLookupProcess.start()
+            if event == 'Loot Lookup Tool':
+                lootLookupProcess = multiprocessing.Process(target=lootLookup,args=())
+                lootLookupProcess.daemon = True
+                lootLookupProcess.start()
 
             if event == "Quit" or event == sg.WINDOW_CLOSE_ATTEMPTED_EVENT:
                 doExitSave(window)
                 break
 
         window.close()
+        tables.close()
         compdb.close()
 
 main()

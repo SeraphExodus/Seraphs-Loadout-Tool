@@ -1,16 +1,15 @@
 # -*- mode: python ; coding: utf-8 -*-
 
-
 a = Analysis(
     ['loadouttool.py'],
     pathex=[],
     binaries=[],
-    datas=[('componentStats.csv', '.'), ('brandslist.csv','.'), ('chassis.csv', '.'), ('fcprograms.csv', '.'), ('ordnance.csv', '.'), ('lootGroups.csv', '.'), ('lootTables.csv', '.'), ('shipTable.csv', '.'), ('shipTypes.csv', '.'), ('SLT_Icon.ico', '.'), ('Fonts','Fonts')],
+    datas=[('componentStats.csv', '.'), ('brandslist.csv','.'), ('chassis.csv', '.'), ('fcprograms.csv', '.'), ('ordnance.csv', '.'), ('lootGroups.csv', '.'), ('lootTables.csv', '.'), ('shipTable.csv', '.'), ('shipTypes.csv', '.'), ('SLT_Icon.ico', '.'), ('Fonts','Fonts'), ('tesseract','tesseract'), ('tessdemo.png', '.')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=['scipy','PySimpleGUI','PyQt6'],
+    excludes=['scipy','PySimpleGUI','PyQt6','Flask','Django','pygame'],
     noarchive=False,
     optimize=0,
 )
@@ -22,7 +21,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name="""Seraph's Loadout Tool Test Version OVERRIDE DO NOT DISTRIBUTE""",
+    name="""Seraph's Loadout Tool Version 2.16.2""",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

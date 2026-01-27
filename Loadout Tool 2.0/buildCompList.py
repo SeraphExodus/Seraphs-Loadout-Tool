@@ -1,20 +1,23 @@
 import os
 import sqlite3
 
-def buildComponentList():
+def buildComponentList(dataDir):
 
-    if not os.path.exists("Data"):
-        os.makedirs("Data")
-    if not os.path.exists("Data\\savedata.db"):
-        open("Data\\savedata.db", 'w')
+    dataPath = dataDir + '\\savedata.db'
+
+    if not os.path.exists(dataDir):
+        os.makedirs(dataDir)
+    if not os.path.exists(dataPath):
+        open(dataPath, 'w')
+        print('savedata.db not found. A new one was created.')
     else:
-        os.remove("Data\\savedata.db")
-        open("Data\\savedata.db", 'w')
+        print('savedata.db already exists. Cancelling operation.')
+        return
 
-    tables = sqlite3.connect("file:Data\\tables.db?mode=ro", uri=True)
-    compdb = sqlite3.connect("file:Data\\savedata.db?mode=rw", uri=True)
-    
+    tables = sqlite3.connect('file:tables.db?mode=ro', uri=True)
     cur1 = tables.cursor()
+
+    compdb = sqlite3.connect('file:' + dataDir + "\\savedata.db?mode=rw", uri=True)  
     cur2 = compdb.cursor()
 
     raw = cur1.execute("SELECT * FROM component").fetchall()
@@ -45,4 +48,3 @@ def buildComponentList():
         cur2.execute("CREATE TABLE " + headerList[i] + "(" + statsList[i] + ")")
     compdb.commit()
     compdb.close()
-    tables.close()

@@ -4,6 +4,7 @@ AEG-77 Vigo Gunship,3000000,Weapon / CM 1,Weapon / CM 2,Weapon 3 (Turret),Weapon
 ARC-170 Starfighter,125000,Ordnance 1,Weapon 1,Weapon 2 (Turret),Weapon 3 (Turret),Countermeasures,,,,40,40,400,400,200,0.97,N/A,0.2,0.5,0.75,1.7
 B-Wing,246000,Ordnance 1,Ordnance 2,Weapon 1,Weapon 2,Weapon 3,Weapon 4,Countermeasures,,30,35,75,75,50,0.9,0.855,0.1,0.3,0.3,1.3
 Belbullab-22 Starfighter,90000,Ordnance 1,Weapon 1,Weapon 2,Countermeasures,,,,,40,40,400,400,200,0.95,N/A,0.2,0.5,0.8,1.6
+Delta-7 Aethersprite,66625,Ordnance 1,Weapon 1,Countermeasures,,,,,,40,60,250,250,125,1,N/A,0.05,0.8,0.8,1.6
 Dunelizard Starfighter,160750,Ordnance 1,Weapon 1,Weapon 2,Countermeasures,,,,,30,35,300,300,150,0.95,N/A,0.2,0.4,0.6,1.3
 Eta-2 Actis Interceptor,90000,Ordnance 1,Weapon 1,Weapon 2,Countermeasures,,,,,40,40,400,400,200,0.95,0.95,0.2,0.5,0.8,1.6
 Havoc Starfighter,210000,Ordnance 1,Ordnance 2,Weapon 1,Weapon 2 (Turret),Weapon 3,Countermeasures,,,30,30,250,250,125,0.95,N/A,0.2,0.4,0.5,1.3
@@ -42,8 +43,8 @@ VT-49 Decimator,5005000,Ordnance 1,Ordnance 2,Ordnance 3,Weapon 1 (Turret),Weapo
 X-Wing,102500,Ordnance 1,Weapon 1,Weapon 2,Countermeasures,,,,,35,30,400,350,200,1,0.95,0.2,0.6,0.7,1.5
 XG-1 Star Wing,225000,Ordnance 1,Ordnance 2,Weapon 1,Weapon 2,Weapon 3,Countermeasures,,,30,30,80,80,50,0.8571,0.9,0.1,0.3,0.35,1.4
 Y-8 Mining Ship,5000000,Ordnance 1,Weapon 1 (Turret),Weapon 2 (Turret),Weapon 3,Weapon 4 (Turret),Weapon 5 (Turret),Countermeasures,,15,10,30,30,20,0.7,N/A,0.2,0.3,0.3,1.2
-Y-Wing,174250,Ordnance 1,Weapon 1,Weapon 2 (Turret),Countermeasures,,,,,35,35,100,100,50,0.9,N/A,0.1,0.3,0.5,1.2
-Y-Wing Longprobe,174250,Ordnance 1,Ordnance 2,Weapon 1,Weapon 2,Countermeasures,,,,35,35,100,100,50,0.9,N/A,0.1,0.3,0.35,1.4
+Y-Wing,174250,Ordnance 1,Weapon 1,Weapon 2 (Turret),Countermeasures,,,,,35,35,100,100,50,0.93,N/A,0.1,0.3,0.5,1.2
+Y-Wing Longprobe,174250,Ordnance 1,Ordnance 2,Weapon 1,Weapon 2,Countermeasures,,,,35,35,100,100,50,0.93,N/A,0.1,0.3,0.35,1.4
 YE-4 Gunship,3000000,Weapon / CM 1,Weapon / CM 2,Weapon 3 (Turret),Weapon 4 (Turret),Weapon 5 (Turret),Weapon 6 (Turret),Weapon 7 (Turret),Weapon 8 (Turret),10,10,10,10,10,0.7,N/A,0.1,0.2,0.2,1.2
 YKL-37R Nova Courier,5005000,Ordnance 1,Ordnance 2,Ordnance 3,Weapon 1 (Turret),Weapon 2 (Turret),Countermeasures,,,10,10,50,50,37.5,0.8,N/A,0.2,0.3,0.3,1.2
 YT-1300 Transport,5005000,Ordnance 1,Ordnance 2,Weapon 1 (Turret),Weapon 2 (Turret),Countermeasures,,,,10,10,50,50,37.5,0.8,N/A,0.2,0.3,0.3,1.2

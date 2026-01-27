@@ -10,6 +10,7 @@ import pyglet
 import sqlite3
 import win32clipboard
 
+from datetime import datetime, timedelta
 from io import BytesIO
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from PIL import ImageGrab
@@ -75,6 +76,12 @@ sg.theme_add_new('Discord_Dark', theme_definition)
 
 sg.theme('Discord_Dark')
 
+global tables
+global cur
+
+tables = sqlite3.connect("file:tables.db?mode=ro", uri=True)
+cur = tables.cursor()
+
 specialSources = ['Convoy Crate', 'Kash Nunes', 'Space Battle Reward', 'Lord Cyssc', "Nym's Starmap", 'High-Tier', 'Beacon', 'GCW2 Reward']
 
 def toClipboard(type, data):
@@ -94,6 +101,56 @@ def sigfig(x, p):
     xpositive = np.where(np.isfinite(x) & (x != 0), np.abs(x), 10**(p-1))
     mag = 10 ** (p -1 - np.floor(np.log10(xpositive)))
     return np.round(x * mag) / mag
+
+def alert(headerText, textLines, buttons, timeout, *textSettings):
+    Layout = []
+
+    if len(textLines) > 0:
+        for i in range(0,len(textLines)):
+            try:
+                textFont = textSettings[0][0][i]
+            except:
+                textFont = summaryFont
+            try:
+                textJust = textSettings[0][1][i]
+            except:
+                textJust = 'center'
+            
+            Line = sg.Text(textLines[i],font=textFont, background_color=bgColor)
+            if textJust == 'left':
+                Layout.append([Line,sg.Push(background_color=bgColor)])
+            elif textJust == 'right':
+                Layout.append([sg.Push(background_color=bgColor),Line])
+            else:
+                Layout.append([sg.Push(background_color=bgColor),Line,sg.Push(background_color=bgColor)])
+
+    buttonList = [sg.Push(background_color=bgColor),sg.Push(background_color=bgColor)]
+    if len(buttons) > 0:
+        for i in buttons:
+            buttonList.append(sg.Button(i,font=buttonFont, button_color=boxColor))
+            buttonList.append(sg.Push(background_color=bgColor))
+        buttonList.append(sg.Push(background_color=bgColor))
+        Layout.append(buttonList)
+
+    alertWindow = sg.Window(headerText,Layout,modal=True,icon=os.path.abspath(os.path.join(os.path.dirname(__file__), 'SLT_Icon.ico')), background_color=bgColor)
+
+    if timeout > 0:
+        startTime = datetime.now()
+        currTime = startTime
+        while currTime < startTime + timedelta(seconds=timeout):
+            event, values = alertWindow.read(timeout=10)
+            if event in buttons or event == sg.WIN_CLOSED:
+                alertWindow.close()
+                return event
+            currTime = datetime.now()
+        alertWindow.close()
+        return
+    
+    while True:
+        event, values = alertWindow.read()
+        if event in buttons or event == sg.WIN_CLOSED:
+            alertWindow.close()
+            return event
 
 def listToHex(input, mode, reverse):
 
@@ -184,9 +241,6 @@ def tableSortByOdds(table, direction):
 
 def constructConvoyStandardTable():
 
-    data = sqlite3.connect("file:Data\\tables.db?mode=rw", uri=True)
-    cur = data.cursor()
-
     kashParts = []
     kashRates = []
     for i in ['a','b','c','d','e','r','s','w']:
@@ -197,13 +251,9 @@ def constructConvoyStandardTable():
             #selecting from 48 tables
             kashRates.extend([np.float64(1/(len(parts) * 48))] * len(parts))
 
-    data.close()
     return kashParts, kashRates
 
 def buildTable(entry):
-
-    data = sqlite3.connect("file:Data\\tables.db?mode=rw", uri=True)
-    cur = data.cursor()
 
     brands = cur.execute("SELECT * FROM brands").fetchall()
     componentids = []
@@ -308,8 +358,6 @@ def buildTable(entry):
             if i in uniqueStrings[j]:
                 combinedRate += rates[j][uniqueStrings[j].index(i)]
         fullListUniqueRates.append(combinedRate)
-    
-    data.close()
 
     return fullListUniques, fullListUniqueRates
 
@@ -319,9 +367,6 @@ def filterList(loot, compType, reLevel):
         compType = 'Any'
     if reLevel == '':
         reLevel = 'Any'
-
-    data = sqlite3.connect("file:Data\\tables.db?mode=rw", uri=True)
-    cur = data.cursor()
 
     brands = cur.execute("SELECT * FROM brands").fetchall()
     componentids = []
@@ -347,7 +392,6 @@ def filterList(loot, compType, reLevel):
     else:
         filteredLoot = loot
 
-    data.close()
     return filteredLoot
 
 def normalCDF(Z):
@@ -375,9 +419,6 @@ def calculateBestSources(lootLookupWindow, *selection):
         reLevel = component[0] + str(level)[-1]
     except:
         return []
-
-    data = sqlite3.connect("file:Data\\tables.db?mode=rw", uri=True)
-    cur = data.cursor()
 
     #need to map stat names to numbers here.
 
@@ -418,9 +459,9 @@ def calculateBestSources(lootLookupWindow, *selection):
     #With the final density in hand for each brand, multiply by the stat rarity for that brand and sum to get the drop chance for that ship
     #order ship list by drop chance
 
-    tables = cur.execute("SELECT * FROM loottables").fetchall()
+    lootTables = cur.execute("SELECT * FROM loottables").fetchall()
     density = []
-    for i in tables:
+    for i in lootTables:
         brandDensity = []
         for j in brands:
             table = [x for x in i if x != '']
@@ -438,7 +479,7 @@ def calculateBestSources(lootLookupWindow, *selection):
             brandDensity.append(tableDensity)
         density.append(brandDensity)
 
-    tableNames = [x[0] for x in tables]
+    tableNames = [x[0] for x in lootTables]
 
     groups = cur.execute("SELECT * FROM lootgroups").fetchall()
 
@@ -561,58 +602,36 @@ def delete_figure_agg(figure_agg):
     plt.close('all')
 
 def getShipInfo(selection):
-    data = sqlite3.connect("file:Data\\tables.db?mode=rw", uri=True)
-    cur = data.cursor()
 
     selectionSplit = selection.split('[')[1].split(']')[0]
 
     shipType = cur.execute("SELECT shiptype FROM npcships WHERE type = ?",[selectionSplit]).fetchall()[0][0]
-    print(shipType)
+    if shipType == '':
+        alert('Alert',["Sorry, I don't have data available for this ship type.","It's most likely either a Legends-exclusive or a non-ship entry in the list."],[],5)
+        return
     try:
         shipData = list(cur.execute("SELECT * FROM shiptypes WHERE name = ?",[shipType]).fetchall()[0])
-        print(shipData)
     except:
         shipType = shipType.split('_tier')[0][:-4] + '_tier' + shipType[-1]
         shipData = list(cur.execute("SELECT * FROM shiptypes WHERE name = ?",[shipType]).fetchall()[0])
-        print(shipData)
 
-    data.close()
+    for i in range(len(shipData)):
+        if tryFloat(shipData[i]) != 0 and tryFloat(shipData[i])%0.01 == 0:
+            shipData[i] = str(round(tryFloat(shipData[i]),1))
 
-    dataFrame1 = [
-        [sg.Push(),sg.Text("Chassis HP:",font=baseFont,p=0)],
-        [sg.Push(),sg.Text("Shield Front HP:",font=baseFont,p=0)],
-        [sg.Push(),sg.Text("Shield Back HP:",font=baseFont,p=0)],
-        [sg.Push(),sg.Text("Armor Front HP:",font=baseFont,p=0)],
-        [sg.Push(),sg.Text("Armor Back HP:",font=baseFont,p=0)],
-        [sg.Push(),sg.Text("Reactor A/HP:",font=baseFont,p=0)],
-        [sg.Push(),sg.Text("Engine A/HP:",font=baseFont,p=0)],
-        [sg.Push(),sg.Text("Capacitor A/HP:",font=baseFont,p=0)],
-        [sg.Push(),sg.Text("Booster A/HP:",font=baseFont,p=0)],
-        [sg.Push(),sg.Text("Droid Interface A/HP:",font=baseFont,p=0)],
-        [sg.Push(),sg.Text("Bridge A/HP:",font=baseFont,p=0)],
-        [sg.Push(),sg.Text("Hangar A/HP:",font=baseFont,p=0)],
-        [sg.Push(),sg.Text("Targeting Station A/HP:",font=baseFont,p=0)],
-    ]
+    columnGroupings = [[1], [6,8], [7,9], [10], [11], [3,2], [5,4], [13,12], [15,14], [17,16], [19,18], [21,20], [23,22]]
+    headers = ['Chassis HP:','Shield Front HP:','Shield Back HP:','Armor Front HP','Armor Back HP:','Reactor A/HP:','Engine A/HP:','Capacitor A/HP:','Booster A/HP:','Droid Interface A/HP:','Bridge A/HP:','Hangar A/HP:','Targeting Station A/HP:']
 
-    for i in [3,5,8,9,13,15,17,19,21,23]:
-        if shipData[i] != '':
-            shipData[i] = '/' + shipData[i]
+    dataFrame1 = []
+    dataFrame2 = []
 
-    dataFrame2 = [
-        [sg.Text(shipData[1],font=baseFont,p=0),sg.Push()],
-        [sg.Text(shipData[6] + shipData[8],font=baseFont,p=0),sg.Push()],
-        [sg.Text(shipData[7] + shipData[9],font=baseFont,p=0),sg.Push()],
-        [sg.Text(shipData[10],font=baseFont,p=0),sg.Push()],
-        [sg.Text(shipData[11],font=baseFont,p=0),sg.Push()],
-        [sg.Text(shipData[2] + shipData[3],font=baseFont,p=0),sg.Push()],
-        [sg.Text(shipData[4] + shipData[5],font=baseFont,p=0),sg.Push()],
-        [sg.Text(shipData[12] + shipData[13],font=baseFont,p=0),sg.Push()],
-        [sg.Text(shipData[14] + shipData[15],font=baseFont,p=0),sg.Push()],
-        [sg.Text(shipData[16] + shipData[17],font=baseFont,p=0),sg.Push()],
-        [sg.Text(shipData[18] + shipData[19],font=baseFont,p=0),sg.Push()],
-        [sg.Text(shipData[20] + shipData[21],font=baseFont,p=0),sg.Push()],
-        [sg.Text(shipData[22] + shipData[23],font=baseFont,p=0),sg.Push()],
-    ]
+    for i in range(len(headers)):
+        if shipData[columnGroupings[i][0]] not in [0, '']:
+            dataFrame1.append([sg.Push(),sg.Text(headers[i],font=baseFont,p=0)])
+            if len(columnGroupings[i]) == 2 and shipData[columnGroupings[i][1]] not in [0, '']:
+                dataFrame2.append([sg.Text(shipData[columnGroupings[i][0]] + ' / ' + shipData[columnGroupings[i][1]],font=baseFont,p=0),sg.Push()])
+            else:
+                dataFrame2.append([sg.Text(shipData[columnGroupings[i][0]],font=baseFont,p=0),sg.Push()])
 
     leftWeaponFrames = []
     rightWeaponFrames = []
@@ -627,7 +646,6 @@ def getShipInfo(selection):
             weaponMax1 = tryFloat(shipData[29 + 9*i])
             weaponVsS1 = tryFloat(shipData[30 + 9*i])
             weaponVsA1 = tryFloat(shipData[31 + 9*i])
-            weaponAmmo1 = tryFloat(shipData[32 + 9*i])
 
             weaponType2 = shipData[24 + 9*(i+1)]
             weaponHP2 = tryFloat(shipData[25 + 9*(i+1)])
@@ -637,7 +655,6 @@ def getShipInfo(selection):
             weaponMax2 = tryFloat(shipData[29 + 9*(i+1)])
             weaponVsS2 = tryFloat(shipData[30 + 9*(i+1)])
             weaponVsA2 = tryFloat(shipData[31 + 9*(i+1)])
-            weaponAmmo2 = tryFloat(shipData[32 + 9*(i+1)])
 
             dpShot1 = round((weaponMin1 + weaponMax1)/2 * (2 * weaponVsS1 + 2 * weaponVsS1 * weaponVsA1 + 1)/5,1)
             dpShot2 = round((weaponMin2 + weaponMax2)/2 * (2 * weaponVsS2 + 2 * weaponVsS2 * weaponVsA2 + 1)/5,1)
@@ -647,27 +664,31 @@ def getShipInfo(selection):
 
             if weaponType1 != '':
                 left += [
-                    [sg.Push(),sg.Text("Weapon" + str(i) + " Type:",font=baseFont,p=0)],
-                    [sg.Push(),sg.Text("Weapon" + str(i) + " A/HP:",font=baseFont,p=0)],
-                    [sg.Push(),sg.Text("Weapon" + str(i) + " Damage:",font=baseFont,p=0)],
+                    [sg.Text("Weapon " + str(i) + " Type:",font=baseFont,p=0),sg.Push()],
+                    [sg.Text("Weapon " + str(i) + " A/HP:",font=baseFont,p=0),sg.Push()],
+                    [sg.Text("Weapon " + str(i) + " DPShot:",font=baseFont,p=0),sg.Push()],
+                    [sg.Text("Weapon " + str(i) + " Refire:",font=baseFont,p=0),sg.Push()],
                     [sg.Text("",font=baseFont,p=0)]
                 ]
                 right += [
                     [sg.Text(weaponType1,font=baseFont,p=0),sg.Push()],
-                    [sg.Text(str(weaponArmor1) + '/' + str(weaponHP1),font=baseFont,p=0),sg.Push()],
+                    [sg.Text(str(weaponArmor1) + ' / ' + str(weaponHP1),font=baseFont,p=0),sg.Push()],
                     [sg.Text(dpShot1,font=baseFont,p=0),sg.Push()],
+                    [sg.Text(weaponRefire1,font=baseFont,p=0),sg.Push()],
                     [sg.Text("",font=baseFont,p=0),sg.Push()],
                 ]
             if weaponType2 != '':
                 left += [
-                    [sg.Push(),sg.Text("Weapon" + str(i+1) + " Type:",font=baseFont,p=0)],
-                    [sg.Push(),sg.Text("Weapon" + str(i+1) + " A/HP:",font=baseFont,p=0)],
-                    [sg.Push(),sg.Text("Weapon" + str(i+1) + " Damage:",font=baseFont,p=0)]
+                    [sg.Text("Weapon " + str(i+1) + " Type:",font=baseFont,p=0),sg.Push()],
+                    [sg.Text("Weapon " + str(i+1) + " A/HP:",font=baseFont,p=0),sg.Push()],
+                    [sg.Text("Weapon " + str(i+1) + " DPShot:",font=baseFont,p=0),sg.Push()],
+                    [sg.Text("Weapon " + str(i+1) + " Refire:",font=baseFont,p=0),sg.Push()],
                 ]
                 right += [
                     [sg.Text(weaponType2,font=baseFont,p=0),sg.Push()],
-                    [sg.Text(str(weaponArmor2) + '/' + str(weaponHP2),font=baseFont,p=0),sg.Push()],
+                    [sg.Text(str(weaponArmor2) + ' / ' + str(weaponHP2),font=baseFont,p=0),sg.Push()],
                     [sg.Text(dpShot2,font=baseFont,p=0),sg.Push()], 
+                    [sg.Text(weaponRefire2,font=baseFont,p=0),sg.Push()],
                 ]
 
             left.append([sg.VPush()])
@@ -690,10 +711,23 @@ def getShipInfo(selection):
         [sg.Frame('',dataFrames,border_width=0)]
     ]
 
-    shipInfoWindow = sg.Window("Ship Info",Layout,modal=False,icon=os.path.abspath(os.path.join(os.path.dirname(__file__), 'SLT_Icon.ico')),finalize=True,)
+    shipInfoWindow = sg.Window("Ship Info",Layout,modal=True,icon=os.path.abspath(os.path.join(os.path.dirname(__file__), 'SLT_Icon.ico')),finalize=True)
+
+    shipInfoWindow.bind('<Control-c>','Capture Screenshot')
 
     while True:
         event, values = shipInfoWindow.read()
+        
+        if event == 'Capture Screenshot':
+            appWindow = FindWindow(None, "Ship Info")
+            rect = GetWindowRect(appWindow)
+            rect = (rect[0]+8, rect[1]+31, rect[2]-8, rect[3]-8)
+            grab = ImageGrab.grab(bbox=rect, all_screens=True)
+            screencapOutput = BytesIO()
+            grab.convert("RGB").save(screencapOutput,"BMP")
+            capdata = screencapOutput.getvalue()[14:]
+            screencapOutput.close()
+            toClipboard(win32clipboard.CF_DIB, capdata)
 
         if event == sg.WIN_CLOSED:
             break
@@ -710,9 +744,6 @@ def generateDropRateChart(lootLookupWindow):
     stat = values['inputstat']
     value = tryFloat(values['inputvalue'])
     count = values['tokenskills']
-
-    data = sqlite3.connect("file:Data\\tables.db?mode=rw", uri=True)
-    cur = data.cursor()
 
     brands = cur.execute("SELECT * FROM brands").fetchall()
     componentids = []
@@ -859,14 +890,9 @@ def generateDropRateChart(lootLookupWindow):
         except:
             pass
 
-    data.close()
-
     return x, y, x2, y2, overflow
 
 def lootLookup():
-
-    data = sqlite3.connect("file:Data\\tables.db?mode=rw", uri=True)
-    cur = data.cursor()
 
     brands = cur.execute("SELECT * FROM brands").fetchall()
     componentids = []
@@ -1334,14 +1360,14 @@ def lootLookup():
                     lootLookupWindow['dropcountvalue2'].update(str((tryFloat(round(rate*100,2)))) + '%',visible=True)
                     lootLookupWindow['dropcountvalue3'].update(round(totalDrops*rate,3),visible=True)
                 
-                tables = groupTables[groupids.index(lootGroup)]
-                while len(tables) < 6:
-                    tables += ['']
+                lootTables = groupTables[groupids.index(lootGroup)]
+                while len(lootTables) < 6:
+                    lootTables += ['']
 
-                if len(tables) > 6:
-                    tables = tables[0:6]
+                if len(lootTables) > 6:
+                    lootTables = lootTables[0:6]
                 for i in range(1,7):
-                    lootLookupWindow['loottable' + str(i)].update(tables[i-1],visible=True)
+                    lootLookupWindow['loottable' + str(i)].update(lootTables[i-1],visible=True)
 
             if values['modeselect'] == 'View Loot Tables':
                 if entry in shipStrings:
@@ -1698,6 +1724,6 @@ def lootLookup():
         oldMode = values['modeselect'] #sets the current mode after each event loop for the purposes of only triggering mode change events when the mode actually changes
 
     lootLookupWindow.close()
-    data.close()
+    tables.close()
 
 #lootLookup()

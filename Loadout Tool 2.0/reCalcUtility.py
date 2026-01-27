@@ -55,6 +55,17 @@ sg.theme_add_new('Discord_Dark', theme_definition)
 
 sg.theme('Discord_Dark')
 
+global tables
+global cur
+global compdb
+global cur2
+
+tables = sqlite3.connect("file:tables.db?mode=ro", uri=True)
+cur = tables.cursor()
+
+compdb = sqlite3.connect("file:"+os.getenv("APPDATA")+"\\Seraph's Loadout Tool\\savedata.db?mode=rw", uri=True)
+cur2 = compdb.cursor()
+
 def remodalize(window):
     try:
         window.TKroot.grab_set()
@@ -80,9 +91,6 @@ def tryInt(x):
         return 0
     
 def generateThreshold(partLevel, unicornStat, unicornPost):
-
-    db = sqlite3.connect("file:Data\\tables.db?mode=ro", uri=True)
-    cur = db.cursor()
 
     means, mods, stdevs, weights = pullStatsData(partLevel)
 
@@ -118,7 +126,6 @@ def generateThreshold(partLevel, unicornStat, unicornPost):
     else:
         threshold *= count
 
-    db.close()
     return threshold
     
 def delta2Hex(logDeltas, threshold):
@@ -190,7 +197,10 @@ def normalCDF(Z):
 def logMean(values):
     total = 0
     for i in values:
-        total += math.log10(i)/len(values)
+        try:
+            total += math.log10(i)/len(values)
+        except:
+            pass
     output = math.pow(10,total)
     return output
     
@@ -254,8 +264,6 @@ def pause():
     alert('Pause',['Paused'],['Continue'],0)
 
 def pullStatsData(reLevel):
-    db = sqlite3.connect("file:Data\\tables.db?mode=ro", uri=True)
-    cur = db.cursor()
 
     brandWeights = listify(cur.execute("SELECT weight FROM brands WHERE relevel = ?", [reLevel]).fetchall())
     rawMeans = cur.execute("SELECT stat1mean, stat2mean, stat3mean, stat4mean, stat5mean, stat6mean, stat7mean, stat8mean, stat9mean FROM brands WHERE relevel = ?", [reLevel]).fetchall()
@@ -284,8 +292,6 @@ def pullStatsData(reLevel):
 
     for i in brandWeights:
         mixtureWeights.append(tryFloat(i)/totalCount)
-
-    db.close()
 
     return means, mods, stdevs, mixtureWeights
 
@@ -509,8 +515,18 @@ def getNextBestVsRefire(input,stat,mean,stdev,mixtureWeights,reMult):
     return nextBestRarity
     
 def getLogDelta(a,b):
-    delta = math.log10(a) - math.log10(b)
-    return delta
+    if b <= 0:
+        if a <= 0:
+            return 0
+        else:
+            return math.log10(a)
+    elif a <= 0:
+        if b <= 0:
+            return 0
+        else:
+            return math.log10(b)
+    else:
+        return math.log10(a) - math.log10(b)
 
 def matchStat(means, stdevs, weights, initial, target):
 
@@ -520,7 +536,12 @@ def matchStat(means, stdevs, weights, initial, target):
     value = initial
     zeroRarity = tryFloat(getRarity(0,means,stdevs,weights))
 
+    loopCount = 0
+
     while delta > 0.000000000001:
+        
+        if loopCount > 10000:
+            break
 
         testRarity = tryFloat(getRarity(value,means,stdevs,weights)) - zeroRarity
         if testRarity < 0:
@@ -534,6 +555,8 @@ def matchStat(means, stdevs, weights, initial, target):
             value = (testMin + testMax) / 2
         
         delta = abs(testRarity - target)
+
+        loopCount += 1
         
     return value
 
@@ -562,9 +585,6 @@ def getMatches(reCalcWindow):
             inputStats += 1
     if inputStats == 0:
         return emptyOutput
-
-    db = sqlite3.connect("file:Data\\tables.db?mode=ro", uri=True)
-    cur = db.cursor()
 
     reLevel = compType[0] + str(level%10)
 
@@ -856,7 +876,11 @@ def getMatches(reCalcWindow):
         testMin = -6 * statMeans[i]
         testMax = 6 * statMeans[i]
 
+        loopCount = 0
+
         while delta > 0.000000000001:
+            if loopCount > 10000:
+                break
             if tails[i] < 0: #removes negative values from distribution for left-tailed stats
                 zeroMass = getRarity(0,means[i],stdevs[i],mixtureWeights)
                 testRarity = getRarity(value,means[i],stdevs[i],mixtureWeights) - zeroMass
@@ -873,6 +897,7 @@ def getMatches(reCalcWindow):
                 value = (testMin + testMax) / 2
             
             delta = abs(testRarity - targetRarity)
+            loopCount += 1
         
         if compStats[i] in ['Vs. Shields','Vs. Armor','Refire Rate']:
             multiplier = 1 + reMult * tryFloat(tails[i])
@@ -990,8 +1015,6 @@ def getMatches(reCalcWindow):
         else:
             matchingDelta.append('')
 
-    db.close()
-
     return rarityList, rarityList1inx, rarity, matches, matchesRaw, postRE, logDelta, matchingDelta
 
 def formatStat(stat,statType,component):
@@ -1021,9 +1044,6 @@ def formatLogDelta(logDelta):
     return logDelta
 
 def updateREOutputs(reCalcWindow):
-
-    db = sqlite3.connect("file:Data\\tables.db?mode=ro", uri=True)
-    cur = db.cursor()
 
     event, values = reCalcWindow.read(timeout=0)
 
@@ -1079,12 +1099,8 @@ def updateREOutputs(reCalcWindow):
             else:
                 reCalcWindow['statoutput' + str(i)].update('')
     reCalcWindow.refresh()
-    db.close()
 
 def isUnicorn(rarityList,reCalcWindow):
-
-    db = sqlite3.connect("file:Data\\tables.db?mode=ro", uri=True)
-    cur = db.cursor()
 
     event, values = reCalcWindow.read(timeout=0)
 
@@ -1118,9 +1134,10 @@ def isUnicorn(rarityList,reCalcWindow):
         count += int(i[0])
 
     unicorns = []
+
     for i in range(0,len(rarityList)):
         if rarityList[i] != '':
-            scaledRarity = rarityList[i] * count
+            scaledRarity = rarityList[i] * count / math.sqrt(len(compStats)/9)
             reward, lohi = isReward(inputStats[i],compType,level,compStats[i])
             if scaledRarity <= threshold and not reward:
                 unicorns.append(compStats[i][:-1])
@@ -1129,7 +1146,7 @@ def isUnicorn(rarityList,reCalcWindow):
         else:
             unicorns.append('')
 
-    thresholdRarity = threshold / count
+    thresholdRarity = threshold / count * math.sqrt(len(compStats)/9)
 
     return unicorns, thresholdRarity
 
@@ -1137,9 +1154,6 @@ def updateMatchQuality(rarityList,logDeltas,reCalcWindow):
 
     event, values = reCalcWindow.read(timeout=0)
     compType = values['componentselect']
-
-    db = sqlite3.connect("file:Data\\tables.db?mode=ro", uri=True)
-    cur = db.cursor()
 
     compStats = list(cur.execute("SELECT * from component WHERE type = ?", [compType]).fetchall()[0][17:25])
     compStats = [x[:-1] for x in compStats if x != '']
@@ -1215,9 +1229,6 @@ def updateMatchQuality(rarityList,logDeltas,reCalcWindow):
     reCalcWindow.refresh()
 
 def brandTable(reCalcWindow, newWindow, *brandWindow):
-
-    db = sqlite3.connect("file:Data\\tables.db?mode=ro", uri=True)
-    cur = db.cursor()
 
     event, values = reCalcWindow.read(timeout=0)
     compType = values['componentselect']
@@ -1325,6 +1336,7 @@ def brandTable(reCalcWindow, newWindow, *brandWindow):
                         x = mean + 6 * stdev
             zScore = (x - mean) / stdev
             rawRarity = normalCDF(zScore)
+            zeroRarity = normalCDF(-mean/stdev)
             if float(tails[i]) > 0:
                 if rawRarity == 1:
                     rarity = '-'
@@ -1332,10 +1344,11 @@ def brandTable(reCalcWindow, newWindow, *brandWindow):
                     rarity = formatRarity(1/(1-rawRarity))
                 rawRarity = 1 - rawRarity
             else:
-                if rawRarity == 0:
+                if rawRarity <= zeroRarity:
                     rarity = '-'
                 else:
-                    rarity = formatRarity(1/rawRarity)
+                    rarity = formatRarity(1/(rawRarity-zeroRarity))
+                rawRarity = min(rawRarity, rawRarity - zeroRarity)
             if rarity == 'Improbable':
                 rarity = '-'
             brandRow.append(rarity)
@@ -1433,26 +1446,26 @@ def brandTable(reCalcWindow, newWindow, *brandWindow):
         brandWindow.bind('<Control-c>','Capture Screenshot')
         return brandWindow
     else:
-        brandWindow = brandWindow[0]
-        for i in range(0,len(stats)):
-            if values['statinput' + str(i)] != '':
-                brandWindow['raw' + str(i)].update(rawTableStats[i],font=baseFont)
-                brandWindow['output' + str(i)].update(reCalcWindow['statoutput' + str(i)].get(),font=baseFont)
-                brandWindow['1inx' + str(i)].update(rarityList1inx[i],font=baseFont)
-                brandWindow['logdelta' + str(i)].update(logDelta[i],font=baseFont)
-            else:
-                brandWindow['raw' + str(i)].update(reCalcWindow['matchoutput' + str(i)].get(),font=('Roboto',10,'italic'))
-                brandWindow['output' + str(i)].update(reCalcWindow['matchpost' + str(i)].get(),font=('Roboto',10,'italic'))
-                brandWindow['1inx' + str(i)].update(targetRarity,font=('Roboto',10,'italic'))
-                brandWindow['logdelta' + str(i)].update('-',font=('Roboto',10,'italic'))
-            for j in range(0,len(brandNames)):
-                brandWindow['table' + str(i) + '/' + str(j)].update(rarityTable[i][j],text_color=rarityColors[i][j])
-        return brandWindow
+        try:
+            brandWindow = brandWindow[0]
+            for i in range(0,len(stats)):
+                if values['statinput' + str(i)] != '':
+                    brandWindow['raw' + str(i)].update(rawTableStats[i],font=baseFont)
+                    brandWindow['output' + str(i)].update(reCalcWindow['statoutput' + str(i)].get(),font=baseFont)
+                    brandWindow['1inx' + str(i)].update(rarityList1inx[i],font=baseFont)
+                    brandWindow['logdelta' + str(i)].update(logDelta[i],font=baseFont)
+                else:
+                    brandWindow['raw' + str(i)].update(reCalcWindow['matchoutput' + str(i)].get(),font=('Roboto',10,'italic'))
+                    brandWindow['output' + str(i)].update(reCalcWindow['matchpost' + str(i)].get(),font=('Roboto',10,'italic'))
+                    brandWindow['1inx' + str(i)].update(targetRarity,font=('Roboto',10,'italic'))
+                    brandWindow['logdelta' + str(i)].update('-',font=('Roboto',10,'italic'))
+                for j in range(0,len(brandNames)):
+                    brandWindow['table' + str(i) + '/' + str(j)].update(rarityTable[i][j],text_color=rarityColors[i][j])
+            return brandWindow
+        except:
+            return []
 
 def reAnalysis(reCalcWindow):
-
-    db = sqlite3.connect("file:Data\\tables.db?mode=ro", uri=True)
-    cur = db.cursor()
 
     event, values = reCalcWindow.read(timeout=0)
 
@@ -1577,8 +1590,6 @@ def reAnalysis(reCalcWindow):
                 rounding.append(roundingAnalysis[5])
         else:
             rounding.append('')
-    
-    db.close()
 
     return postsList, percentsList, rounding
 
@@ -1704,7 +1715,7 @@ def reAnalysisUI(reCalcWindow, newWindow, *analysisWindow):
     else:
         analysisWindow = analysisWindow[0]
 
-        for i in range(0,9):
+        for i in range(0,len(compStats)):
             analysisWindow['worstcase' + str(i)].update(worstCase[i])
             analysisWindow['worstcasepercent' + str(i)].update(worstCasePercent[i])
             analysisWindow['bestcase' + str(i)].update(bestCase[i])
@@ -1722,9 +1733,6 @@ def reAnalysisUI(reCalcWindow, newWindow, *analysisWindow):
 
 def saveProject(reCalcWindow):
     event, values = reCalcWindow.read(timeout=0)
-
-    compdb = sqlite3.connect("file:Data\\savedata.db?mode=rw", uri=True)
-    cur2 = compdb.cursor()
 
     name = values['projectname']
     compType = values['componentselect']
@@ -1783,16 +1791,9 @@ def saveProject(reCalcWindow):
                 saved = True
 
     compdb.commit()
-    compdb.close()
     return saved
 
 def loadREProject(reCalcWindow):
-
-    db = sqlite3.connect("file:Data\\tables.db?mode=ro", uri=True)
-    cur = db.cursor()
-
-    compdb = sqlite3.connect("file:Data\\savedata.db?mode=rw", uri=True)
-    cur2 = compdb.cursor()
 
     try:
         projectList = listify(cur2.execute("SELECT name FROM reproject ORDER BY name ASC").fetchall())
@@ -1956,7 +1957,6 @@ def loadREProject(reCalcWindow):
     
     loadWindow.close()
     compdb.commit()
-    compdb.close()
 
     return loaded
 
@@ -1966,17 +1966,9 @@ def exportProject(reCalcWindow):
 
     event, values = reCalcWindow.read(timeout=0)
 
-    db = sqlite3.connect("file:Data\\tables.db?mode=ro", uri=True)
-    cur = db.cursor()
-
     compType = values['componentselect']
     compTypeFormatted = compType.lower().replace(" ", "").replace("/", "").replace(".", "")
     compStatNames = list(cur.execute("SELECT stat1, stat2, stat3, stat4, stat5, stat6, stat7, stat8 FROM component WHERE type = ?",[compType]).fetchall()[0])
-
-    db.close()
-
-    compdb = sqlite3.connect("file:Data\\savedata.db?mode=rw", uri=True)
-    cur2 = compdb.cursor()
 
     compStats = []
     outputStats = []
@@ -2016,10 +2008,8 @@ def exportProject(reCalcWindow):
             if len(old) > 0:
                 result3 = alert('Overwrite',['A component with this name already exists. Do you wish to overwrite it?'],['Proceed','Cancel'],0)
                 if result3 == 'Proceed':
-                    bindings = '?, ' * (len([x for x in compStatNames if x != '']))
+                    bindings = '?, ' * (len([x for x in compStatNames if x != '']) + 1)
                     bindings = bindings[:-2] #just cuts the last comma/space off
-                    if(compType != 'Armor'):
-                        bindings += ', ?'
                     cur2.execute("INSERT OR REPLACE INTO " + compTypeFormatted + " VALUES (" + bindings + ")",[values['projectname']] + outputStats)
                     alert('Success',['Export Successful!'],[],1.5)
                     export = True
@@ -2028,20 +2018,15 @@ def exportProject(reCalcWindow):
             else:
                 bindings = '?, ' * (len([x for x in compStatNames if x != '']) + 1)
                 bindings = bindings[:-2]
-                if(compType != 'Armor'):
-                        bindings += ', ?'
                 cur2.execute("INSERT OR REPLACE INTO " + compTypeFormatted + " VALUES (" + bindings + ")",[values['projectname']] + outputStats)
                 alert('Success',['Export Successful!'],[],1.5)
                 export = True
                 remodalize(reCalcWindow)
             
     compdb.commit()
-    compdb.close()
     return export
 
 def isReward(statValue,compType,level,stat):
-    db = sqlite3.connect("file:Data\\tables.db?mode=ro", uri=True)
-    cur = db.cursor()
 
     compStats = list(cur.execute("SELECT * from component WHERE type = ?", [compType]).fetchall()[0][17:25])
     tails = list(cur.execute("SELECT * from component WHERE type = ?", [compType]).fetchall()[0][9:17])
@@ -2160,9 +2145,6 @@ def generateMatchBands(thresholdLow, thresholdHigh, matches, postRE, reCalcWindo
     compType = values['componentselect']
     level = values['relevelselect']
     reLevel = compType[0] + str(level)[-1]
-
-    db = sqlite3.connect("file:Data\\tables.db?mode=ro", uri=True)
-    cur = db.cursor()
 
     means, mods, stdevs, mixtureWeights = pullStatsData(reLevel)
     
@@ -2284,15 +2266,10 @@ def generateMatchBands(thresholdLow, thresholdHigh, matches, postRE, reCalcWindo
             statsLow[i] = str(statsLow[i]) + ' (Reward)'
         if isReward(statsHigh[i],compType,level,compStats[i])[0]:
             statsHigh[i] = str(statsHigh[i]) + ' (Reward)'
-               
-    db.close()
-
+            
     return matchStringRaw, matchStringPost
 
 def reCalc():
-
-    db = sqlite3.connect("file:Data\\tables.db?mode=ro", uri=True)
-    cur = db.cursor()
 
     menu_def = [
         ['&RE Project', ['&New Project', '&!Open Project', '!&Save Project', 'E&xit']],
@@ -2415,15 +2392,10 @@ def reCalc():
         [sg.Push(),sg.Frame('',matchesFrame,border_width=0,p=0,s=(515,250),element_justification='center'),sg.Push()]
     ]  
 
-    compdb = sqlite3.connect("file:Data\\savedata.db?mode=rw", uri=True)
-    cur2 = compdb.cursor()
-
     try:
         projects = cur2.execute("SELECT name FROM reproject").fetchall()
     except:
         projects = []
-
-    compdb.close()
 
     if projects != []:
         menu = menu_def_load_unlocked
@@ -2672,18 +2644,18 @@ def reCalc():
                 reCalcWindow['matchheader'].update(visible=True)
                 reCalcWindow['⮂'].update(visible=True)
                 for i in range(0,9):
-                    reCalcWindow['logdelta' + str(i)].update('')
-                    reCalcWindow['matchquality' + str(i)].update('')
+                    reCalcWindow['logdelta' + str(i)].update('',text_color=textColor)
+                    reCalcWindow['matchquality' + str(i)].update('',text_color=textColor)
                     if stats[i] != '':
-                        reCalcWindow['stattext' + str(i)].update(stats[i])
-                        reCalcWindow['stattext2' + str(i)].update(stats[i])
-                        reCalcWindow['matchtext' + str(i)].update(stats[i])
-                        reCalcWindow['statinput' + str(i)].update(visible=True)
+                        reCalcWindow['stattext' + str(i)].update(stats[i],text_color=textColor)
+                        reCalcWindow['stattext2' + str(i)].update(stats[i],text_color=textColor)
+                        reCalcWindow['matchtext' + str(i)].update(stats[i],text_color=textColor)
+                        reCalcWindow['statinput' + str(i)].update(visible=True,text_color=textColor)
                     else:
-                        reCalcWindow['stattext' + str(i)].update('')
-                        reCalcWindow['stattext2' + str(i)].update('')
-                        reCalcWindow['matchtext' + str(i)].update('')
-                        reCalcWindow['statinput' + str(i)].update('', visible=False)
+                        reCalcWindow['stattext' + str(i)].update('',text_color=textColor)
+                        reCalcWindow['stattext2' + str(i)].update('',text_color=textColor)
+                        reCalcWindow['matchtext' + str(i)].update('',text_color=textColor)
+                        reCalcWindow['statinput' + str(i)].update('', visible=False,text_color=textColor)
 
             if event == 'relevelselect':
                 if analysisWindow != None:
@@ -2702,13 +2674,16 @@ def reCalc():
                     reCalcWindow['unicornthreshold'].update('')
                 
                 for i in range(0,9):
-                    reCalcWindow['statinput' + str(i)].update('', disabled=False)
-                    reCalcWindow['statoutput' + str(i)].update('')
-                    reCalcWindow['matchoutput' + str(i)].update('')
-                    reCalcWindow['matchpost' + str(i)].update('')
-                    reCalcWindow['statrarity' + str(i)].update('')
-                    reCalcWindow['logdelta' + str(i)].update('')
-                    reCalcWindow['matchquality' + str(i)].update('')
+                    reCalcWindow['stattext' + str(i)].update(text_color=textColor)
+                    reCalcWindow['stattext2' + str(i)].update(text_color=textColor)
+                    reCalcWindow['matchtext' + str(i)].update(text_color=textColor)
+                    reCalcWindow['statinput' + str(i)].update('', disabled=False,text_color=textColor)
+                    reCalcWindow['statoutput' + str(i)].update('',text_color=textColor)
+                    reCalcWindow['matchoutput' + str(i)].update('',text_color=textColor)
+                    reCalcWindow['matchpost' + str(i)].update('',text_color=textColor)
+                    reCalcWindow['statrarity' + str(i)].update('',text_color=textColor)
+                    reCalcWindow['logdelta' + str(i)].update('',text_color=textColor)
+                    reCalcWindow['matchquality' + str(i)].update('',text_color=textColor)
 
             if event.endswith("+FOCUS OUT"):
                 reAnalysis(reCalcWindow)
@@ -2803,7 +2778,7 @@ def reCalc():
                 pass
 
     reCalcWindow.close()
-    db.close()
-    return export
+    compdb.close()
+    tables.close()
 
 #reCalc() #uncomment to run from here.

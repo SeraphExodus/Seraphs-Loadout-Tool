@@ -3,7 +3,7 @@ import sqlite3
 
 from csv import reader as csvreader
 
-import datetime
+#Constructs tables.db from csv files, which contains all the necessary reference information for the Loadout Tool and its utilities to function
 
 def buildList(path):
     with open(path, newline='') as csvfile:
@@ -17,33 +17,16 @@ def buildList(path):
             output.append(newRow)
         return output
     
-def buildTables(currentVersion):
+def buildTables():
+    print('Attempting to build tables.db')
 
-    if not os.path.exists("Data"):
-        os.makedirs("Data")
+    if os.path.exists("tables.db"):
+        os.remove("tables.db")
+        print('Old table version cleared')
+    open("tables.db", 'w')
 
-    if not os.path.exists("Data\\tables.db"):
-        open("Data\\tables.db", 'w')
-    else:
-        data = sqlite3.connect("file:Data\\tables.db?mode=rw", uri=True)
-        cur = data.cursor()
-        try:
-            tableVersion = cur.execute("SELECT versionid FROM version").fetchall()[0][0]
-            data.close()
-            if tableVersion == currentVersion and currentVersion != 'null':
-                return
-            elif currentVersion == 'null':
-                currentVersion = tableVersion
-        except:
-            data.close()
-        os.remove("Data\\tables.db")
-        open("Data\\tables.db", 'w')
-
-    data = sqlite3.connect("file:Data\\tables.db?mode=rw", uri=True)
+    data = sqlite3.connect("file:tables.db?mode=rw", uri=True)
     cur = data.cursor()
-
-    cur.execute("CREATE TABLE version(versionid)")
-    cur.execute("INSERT INTO version VALUES(?)",[currentVersion])
 
     cur.execute("CREATE TABLE component(type, stat1, stat2, stat3, stat4, stat5, stat6, stat7, stat8, stat1re, stat2re, stat3re, stat4re, stat5re, stat6re, stat7re, stat8re, stat1disp, stat2disp, stat3disp, stat4disp, stat5disp, stat6disp, stat7disp, stat8disp)")
     componentStats = buildList(os.path.abspath(os.path.join(os.path.dirname(__file__), 'componentStats.csv')))
@@ -72,6 +55,10 @@ def buildTables(currentVersion):
     cur.execute("CREATE TABLE lootgroups(lootgroup, table1, table2, table3, table4, table5, table6)")
     lootGroups = buildList(os.path.abspath(os.path.join(os.path.dirname(__file__), 'lootGroups.csv')))
     cur.executemany("INSERT INTO lootgroups VALUES(?, ?, ?, ?, ?, ?, ?)", lootGroups)
+
+    cur.execute("CREATE TABLE complib(type, name, stat1, stat2, stat3, stat4, stat5, stat6, stat7, stat8)")
+    compLib = buildList(os.path.abspath(os.path.join(os.path.dirname(__file__), 'complib.csv')))
+    cur.executemany("INSERT INTO complib VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", compLib)
 
     bindString = 'name, chassishp, reactorhp, reactorarmor, enginehp, enginearmor, shield0fronthp, shield0backhp, shield1fronthp, shield1backhp, armorfronthp, armorbackhp, capacitorhp, capacitorarmor, boosterhp, boosterarmor, dihp, diarmor, bridgehp, bridgearmor, hangarhp, hangararmor, targetinghp, targetingarmor, '
     for i in range(0,8):
@@ -117,4 +104,4 @@ def buildTables(currentVersion):
     data.close()
     print('Tables Built Successfully!')
 
-#buildTables('null')
+buildTables()

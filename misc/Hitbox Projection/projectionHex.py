@@ -196,9 +196,13 @@ def main():
     # /// Sim Configuration ///
     boxes = [[26.5,5.62,17.33]]
     offsets = [[0, 0, 0]]
-    #boxes, offsets = coords2BoxOffset([[[22.5204887,4.69140148,27.09134],[-22.5204887,-3.22165513,-27.609]],[[7.577867,9.669678,49.7918968],[-7.577867,-4.34824848,-28.45220]],[[0.81808126,33.38945,-19.2523],[-0.81808126,-25.6273746,-35.9919357]]]) #use this function for converting from .lod box coordinates to this script's system
+    boxes, offsets = coords2BoxOffset([
+        [[3.625,2.05,3.15],[-3.625,-1.55,-9.6]], #Add or remove lines as necessary for additional boxes
+        [[6.75,2.05,12.4],[3.625,-1.55,-3.975]],
+        [[-3.625,2.05,12.4],[-6.75,-1.55,-3.975]]
+        ]) #use this function for converting from .lod box coordinates to this script's system
     boxColors = ['#ff9900','#0000ff','#ff00ff','#00ff99']
-    showGraphs = False #Tends to be a lot faster when you turn off the graphing.
+    showGraphs = True #Tends to be a lot faster when you turn off the graphing.
     precisionMultiplier = 1 #1 is default. Increasing precision raises time complexity significantly ~O(n^2)
     views = 1000
     # /// Sim Configuration ///

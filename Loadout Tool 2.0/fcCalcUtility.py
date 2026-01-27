@@ -1,12 +1,10 @@
 import FreeSimpleGUI as sg
+import numpy as np
 import os
 import sqlite3
 import win32clipboard
 
 from datetime import datetime, timedelta
-
-from buildCompList import buildComponentList
-from buildTables import buildTables
 
 headerFont = ("Roboto", 12, "bold")
 summaryFont = ("Roboto", 11, "bold")
@@ -34,6 +32,17 @@ theme_definition = {'BACKGROUND': boxColor,
 sg.theme_add_new('Discord_Dark', theme_definition)
 
 sg.theme('Discord_Dark')
+
+global tables
+global cur
+global compdb
+global cur2
+
+tables = sqlite3.connect("file:tables.db?mode=ro", uri=True)
+cur = tables.cursor()
+
+compdb = sqlite3.connect("file:"+os.getenv("APPDATA")+"\\Seraph's Loadout Tool\\savedata.db?mode=rw", uri=True)
+cur2 = compdb.cursor()
 
 def remodalize(window):
     try:
@@ -63,14 +72,7 @@ def tryFloat(x):
         return float(x)
     except:
         return 0
-    
-def floor(x):
-    try:
-        y = round(x-0.5)
-        return y
-    except:
-        SyntaxError
-    
+
 def toClipboard(text):
     win32clipboard.OpenClipboard()
     win32clipboard.EmptyClipboard()
@@ -191,7 +193,7 @@ def updateCooldown(window,programNames,cooldown):
             if baseDelay == 0:
                 cd = int(0)
             else:
-                cd = int(floor(dcs * baseDelay + 1))
+                cd = int(np.floor(dcs * baseDelay + 1))
             window['cooldown'+str(i)].update(str(cd) + ' s')
         except:
             window['cooldown'+str(i)].update('')
@@ -223,8 +225,6 @@ def updateEnables(window):
     window.refresh()
 
 def newFCLoadout():
-    compdb = sqlite3.connect("file:Data\\savedata.db?mode=rw", uri=True)
-    cur2 = compdb.cursor()
 
     columnString = ''
 
@@ -303,9 +303,6 @@ def newFCLoadout():
 def saveFCLoadout(window):
     event, values = window.read(timeout=0)
 
-    compdb = sqlite3.connect("file:Data\\savedata.db?mode=rw", uri=True)
-    cur2 = compdb.cursor()
-
     name = window['fcname'].get()
     level = window['fclevel'].get()
     dcs = values['dcs']
@@ -325,10 +322,6 @@ def saveFCLoadout(window):
     compdb.close()
 
 def loadFCLoadout(window):
-    db = sqlite3.connect("file:Data\\tables.db?mode=ro", uri=True)
-    cur = db.cursor()
-    compdb = sqlite3.connect("file:Data\\savedata.db?mode=rw", uri=True)
-    cur2 = compdb.cursor()
 
     fcList = listify(cur2.execute("SELECT name FROM fcloadout ORDER BY name ASC").fetchall())
 
@@ -452,8 +445,6 @@ def loadFCLoadout(window):
 
     loadFCWindow.close()
     compdb.commit()
-    compdb.close()
-    db.close()
     return loaded
 
 def updateMacroButton(window):
@@ -476,13 +467,6 @@ def setMenu(saveLock, openLock, macroLock):
     return menu_def
 
 def fcCalc(*dcs):
-    if not os.path.exists("Data\\tables.db"):
-        buildTables('null')
-    if not os.path.exists("Data\\savedata.db"):
-        buildComponentList()
-
-    db = sqlite3.connect("file:Data\\tables.db?mode=ro", uri=True)
-    cur = db.cursor()
 
     programs = listifyPrograms(cur.execute("SELECT * FROM fcprogram").fetchall())
     slashCommand = programs[0]
@@ -508,23 +492,21 @@ def fcCalc(*dcs):
         [sg.Push(),sg.Text("Memory Utilization:",p=2,font=summaryFont)],
         [sg.Push(),sg.Text("Droid Command Speed:",font=summaryFont,p=2)]
     ]
+
     try:
-        if tryFloat(dcs[0]) > 0:
-            defaultDCS = tryFloat(dcs[0])
+        dcs = ''.join([x for x in dcs])
+        if tryFloat(dcs) > 0:
+            defaultDCS = tryFloat(dcs)
         else:
             defaultDCS = ''
     except:
         defaultDCS = ''
-
     topBoxFrameRight = [
         [sg.Text("",p=2,key='fcname',font=summaryFont,justification='center'),sg.Push()],
         [sg.Text("",p=2,key='fclevel',font=summaryFont,s=9,justification='center'),sg.Push()],
         [sg.Text("0 / 0",key='memoryutilization',p=2,font=summaryFont,s=9,justification='center'),sg.Push()],
         [sg.Input(default_text=defaultDCS,p=2,font=summaryFont,s=10,key='dcs',justification='center',disabled=True, disabled_readonly_background_color=boxColor,disabled_readonly_text_color=textColor),sg.Push()]
     ]
-
-    compdb = sqlite3.connect("file:Data\\savedata.db?mode=rw", uri=True)
-    cur2 = compdb.cursor()
 
     try:
         saved = cur2.execute("SELECT name FROM fcloadout").fetchall()
@@ -726,4 +708,7 @@ def fcCalc(*dcs):
             break
 
     window.close()
-    db.close()
+    tables.close()
+    compdb.close()
+
+#fcCalc()
