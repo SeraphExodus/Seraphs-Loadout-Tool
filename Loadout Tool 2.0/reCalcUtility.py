@@ -1,5 +1,7 @@
+import ctypes
 import FreeSimpleGUI as sg
 import math
+import numpy as np
 import os
 import sqlite3
 import win32clipboard
@@ -10,6 +12,8 @@ from PIL import ImageGrab
 from win32gui import FindWindow, GetWindowRect
 
 import pyglet
+
+displayScaleFactor = ctypes.windll.shcore.GetScaleFactorForDevice(0)/100
 
 fontList = sg.Text.fonts_installed_list()
 
@@ -2439,6 +2443,8 @@ def reCalc():
                 appWindow = FindWindow(None, "Reverse Engineering Analysis")
                 rect = GetWindowRect(appWindow)
                 rect = (rect[0]+8, rect[1]+31, rect[2]-8, rect[3]-8)
+                rect = [displayScaleFactor * x for x in rect]
+                rect = [np.ceil(rect[0]),np.ceil(rect[1]),np.floor(rect[2]),np.floor(rect[3])]
                 grab = ImageGrab.grab(bbox=rect, all_screens=True)
                 screencapOutput = BytesIO()
                 grab.convert("RGB").save(screencapOutput,"BMP")
@@ -2456,6 +2462,8 @@ def reCalc():
                 appWindow = FindWindow(None, "Brand Rarity Breakdown")
                 rect = GetWindowRect(appWindow)
                 rect = (rect[0]+8, rect[1]+31, rect[2]-8, rect[3]-8)
+                rect = [displayScaleFactor * x for x in rect]
+                rect = [np.ceil(rect[0]),np.ceil(rect[1]),np.floor(rect[2]),np.floor(rect[3])]
                 grab = ImageGrab.grab(bbox=rect, all_screens=True)
                 screencapOutput = BytesIO()
                 grab.convert("RGB").save(screencapOutput,"BMP")
@@ -2476,6 +2484,8 @@ def reCalc():
                 appWindow = FindWindow(None, "Reverse Engineering Calculator")
                 rect = GetWindowRect(appWindow)
                 rect = (rect[0]+8, rect[1]+51, rect[2]-8, rect[3]-8)
+                rect = [displayScaleFactor * x for x in rect]
+                rect = [np.ceil(rect[0]),np.ceil(rect[1]),np.floor(rect[2]),np.floor(rect[3])]
                 grab = ImageGrab.grab(bbox=rect, all_screens=True)
                 screencapOutput = BytesIO()
                 grab.convert("RGB").save(screencapOutput,"BMP")

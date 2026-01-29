@@ -1,3 +1,4 @@
+import ctypes
 import FreeSimpleGUI as sg
 import math
 import matplotlib as mpl
@@ -15,6 +16,8 @@ from io import BytesIO
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from PIL import ImageGrab
 from win32gui import FindWindow, GetWindowRect
+
+displayScaleFactor = ctypes.windll.shcore.GetScaleFactorForDevice(0)/100
 
 fontList = sg.Text.fonts_installed_list()
 
@@ -722,6 +725,8 @@ def getShipInfo(selection):
             appWindow = FindWindow(None, "Ship Info")
             rect = GetWindowRect(appWindow)
             rect = (rect[0]+8, rect[1]+31, rect[2]-8, rect[3]-8)
+            rect = [displayScaleFactor * x for x in rect]
+            rect = [np.ceil(rect[0]),np.ceil(rect[1]),np.floor(rect[2]),np.floor(rect[3])]
             grab = ImageGrab.grab(bbox=rect, all_screens=True)
             screencapOutput = BytesIO()
             grab.convert("RGB").save(screencapOutput,"BMP")

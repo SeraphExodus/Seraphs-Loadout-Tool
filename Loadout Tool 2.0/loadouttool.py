@@ -1,3 +1,4 @@
+import ctypes
 import FreeSimpleGUI as sg
 import jellyfish
 import multiprocessing
@@ -86,6 +87,8 @@ if "Roboto" not in fontList:
     pyglet.font.add_file(str(os.path.abspath(os.path.join(os.path.dirname(__file__), 'Fonts/Roboto-Regular.ttf'))))
     pyglet.font.add_file(str(os.path.abspath(os.path.join(os.path.dirname(__file__), 'Fonts/Roboto-Thin.ttf'))))
     pyglet.font.add_file(str(os.path.abspath(os.path.join(os.path.dirname(__file__), 'Fonts/Roboto-ThinItalic.ttf'))))
+
+displayScaleFactor = ctypes.windll.shcore.GetScaleFactorForDevice(0)/100
 
 scaleFactor = 1
 
@@ -1955,7 +1958,7 @@ def loadLoadout(window):
     loadoutList = listify(cur2.execute("SELECT name FROM loadout ORDER BY name ASC").fetchall())
 
     leftCol = [
-        [sg.Push(),sg.Text("Select a Loadout", font=headerFont),sg.Push()],
+        [sg.Push(),sg.Text("Select a Loadout", font=baseFont),sg.Push()],
         [sg.Listbox(values=loadoutList, size=(30, 24), enable_events=True, key='loadoutname', font=baseFont, select_mode="single", justification='center')]
     ]
 
@@ -1967,14 +1970,15 @@ def loadLoadout(window):
         rightColRight.append([sg.Text("", font=baseFont, key='data'+str(i), p=fontPadding),sg.Push()])
 
     rightCol = [
-        [sg.Push(),sg.Text("Loadout Preview", font=headerFont),sg.Push()],
+        [sg.Push(),sg.Text("Loadout Preview", font=baseFont),sg.Push()],
         [sg.Frame('',rightColLeft,border_width=0,p=elementPadding,s=(117,425)), sg.Frame('',rightColRight,border_width=0,p=elementPadding,s=(267,425))]
     ]
 
     Layout = [
+        [sg.Push(),sg.Text('Loadout Management',font=headerFont,p=elementPadding),sg.Push()],
         [sg.vtop(sg.Column(leftCol)), sg.vtop(sg.Frame('', rightCol, border_width=0, s=(450,425)))],
         [sg.VPush()],
-        [sg.Push(),sg.Button("Load", font=buttonFont),sg.Push(),sg.Button("Edit",font=buttonFont),sg.Push(),sg.Button("Duplicate",font=buttonFont),sg.Push(),sg.Button("Delete", font=buttonFont),sg.Push(),sg.Button("Cancel", font=buttonFont),sg.Push()]
+        [sg.Push(),sg.Button("Load", font=buttonFont),sg.Push(),sg.Button("Edit",font=buttonFont),sg.Push(),sg.Button("Duplicate",font=buttonFont),sg.Push(),sg.Button("Delete", font=buttonFont),sg.Push(),sg.Button("Exit", font=buttonFont),sg.Push()]
     ]
 
     loadWindow = sg.Window('Loadout Management', Layout, modal=True, icon=os.path.abspath(os.path.join(os.path.dirname(__file__), 'SLT_Icon.ico')),finalize=True)
@@ -2156,7 +2160,7 @@ def loadLoadout(window):
                         loadWindow['data' + str(i)].update("")
                     loadWindow.refresh()
 
-        if event == "Exit" or event == sg.WIN_CLOSED or event == 'Cancel':
+        if event == "Exit" or event == sg.WIN_CLOSED:
             break
 
     compdb.commit()
@@ -2164,12 +2168,18 @@ def loadLoadout(window):
 
     return loadoutData[1], loadoutData[2], loaded
 
-def saveLoadout(window):
+def saveLoadout(window, *saveAs):
     event, values = window.read(timeout=0)
 
-    chassis = window['loadoutname'].get()
+    loadoutName = window['loadoutname'].get()
 
-    loadout = list(cur2.execute("SELECT * FROM loadout WHERE name = ?", [chassis]).fetchall()[0])
+    loadout = list(cur2.execute("SELECT * FROM loadout WHERE name = ?", [loadoutName]).fetchall()[0])
+
+    try:
+        loadout[0] = saveAs[0]
+    except:
+        pass
+
     newLoadout = loadout[:3] + [
         values['frontarmorselection'], 
         values['reararmorselection'], 
@@ -2204,8 +2214,53 @@ def saveLoadout(window):
         ]
     
     cur2.execute("INSERT OR REPLACE INTO loadout VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", newLoadout)
-    alert('',['Save Successful!'],[],3)
     compdb.commit()
+
+def saveLoadoutAs(window):
+
+    loadoutList = [x[0] for x in cur2.execute('SELECT name FROM loadout').fetchall()]
+
+    event, values = window.read(timeout=0)
+
+    loadoutName = window['loadoutname'].get()
+    
+    Layout = [
+        [sg.Push(),sg.Text('Save Loadout As',font=headerFont,p=elementPadding),sg.Push()],
+        [sg.Text('',font=baseFont,p=fontPadding)],
+        [sg.Push(),sg.Text('Loadout Name:',font=baseFont,p=fontPadding),sg.Input(default_text=loadoutName,key='name',font=baseFont,p=fontPadding,s=26),sg.Push()],
+        [sg.Text('',font=baseFont,p=fontPadding)],
+        [sg.Push(),sg.Button('Save',font=buttonFont),sg.Push(),sg.Button('Cancel',font=buttonFont),sg.Push()]
+    ]
+
+    saveAsWindow = sg.Window('Save Loadout As', Layout, modal=True, finalize=True, icon=os.path.abspath(os.path.join(os.path.dirname(__file__), 'SLT_Icon.ico')))
+    saveAsWindow.bind('<Escape>', 'Cancel')
+
+    newName = ''
+
+    while True:
+        event, values = saveAsWindow.read()
+
+        if event == 'Save':
+            newName = values['name']
+            if newName not in loadoutList or newName == loadoutName:
+                saveLoadout(window,newName)
+                break
+            elif newName in loadoutList and newName != loadoutName:
+                result = alert('Alert',['A loadout with that name already exists. Do you wish to overwrite it?'],['Confirm','Cancel'],0)
+                if result == 'Confirm':
+                    saveLoadout(window,newName)
+                    break
+                else:
+                    pass
+            else:
+                alert('Error',['An unknown error occurred. Contact me so I can look into it. -Seraph'],[],3)
+
+        if event == sg.WIN_CLOSED or event == 'Cancel':
+            break
+
+    saveAsWindow.close()
+
+    return newName
 
 def ordnanceCheck(stats, compName):
     if compName == "Ordnance Launcher":
@@ -3149,6 +3204,7 @@ def doExitSave(window):
         cur2.execute("INSERT INTO exitsave VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", exitSave)
 
         compdb.commit()
+        print('Exit save successful.')
 
         return True
     except:
@@ -3297,6 +3353,36 @@ def updateProfile(window):
 
     window.refresh()
 
+def setMenus(menuEnables):
+
+    [openLoadoutEnable,saveAsEnable,saveEnable] = menuEnables
+
+    if openLoadoutEnable:
+        openLoadoutString = '&Open Loadout'
+    else:
+        openLoadoutString = '!&Open Loadout'
+    
+    if saveAsEnable:
+        saveAsString = '&Save Loadout As'
+        clearCompString = '&Clear All Components'
+    else:
+        saveAsString = '!&Save Loadout As'
+        clearCompString = '!&Clear All Components'
+
+    if saveEnable:
+        saveString = '&Save Loadout'
+    else:
+        saveString = '!&Save Loadout'
+
+    menu_def = [
+            ['&Loadout', ['&New Loadout', openLoadoutString, saveString, saveAsString, '&Quit']],
+            ['&Components', ['Add and &Manage Components', clearCompString]],
+            ['&Tools', ['&Reverse Engineering Calculator','&Flight Computer Calculator','&Loot Lookup Tool','&Import v1.x Data', '&Check for Updates']],
+            ['&Help', ['&About','&Keyboard Shortcuts']]
+        ]
+        
+    return menu_def
+
 def main():
 
     ### Updates deprecated file structure and sets up saved data storage if needed ###
@@ -3350,27 +3436,11 @@ def main():
             alert('Fatal Error',["Fatal Error: You do not appear to have permission to write data to the tool's database files.","Try right-clicking the application icon and selecting 'Run as Administrator'."],[],10)
             return
 
-        loadouts = cur2.execute("SELECT * from loadout").fetchall()
-        if loadouts == []:
-            openLoadoutString = '!&Open Loadout'
-        else:
-            openLoadoutString = '&Open Loadout'
+        menuEnables = [False, False, False]
+
+        menu_def = setMenus(menuEnables)
 
         Lists = updateParts()
-
-        menu_def = [
-            ['&Loadout', ['&New Loadout', openLoadoutString, '!&Save Loadout', 'E&xit']],
-            ['&Components', ['Add and &Manage Components', '!&Clear All Components']],
-            ['&Tools', ['&Reverse Engineering Calculator','&Flight Computer Calculator','&Loot Lookup Tool','&Import v1.x Data', '&Check for Updates']],
-            ['&Help', ['&About','&Keyboard Shortcuts']]
-        ]
-
-        menu_def_save_enabled = [
-            ['Loadout', ['&New Loadout', '&Open Loadout', '&Save Loadout', 'E&xit']],
-            ['Components', ['Add and &Manage Components', '&Clear All Components']],
-            ['&Tools', ['&Reverse Engineering Calculator','&Flight Computer Calculator','&Loot Lookup Tool','&Import v1.x Data', '&Check for Updates']],
-            ['Help', ['&About','&Keyboard Shortcuts']]
-        ]
 
         reactorText = [
             [sg.Push(),sg.Text("Mass:", font=baseFont, p=fontPadding)],
@@ -4152,6 +4222,12 @@ def main():
         window.bind('<Control-x>', 'Clear All Components')
         window.bind('<Control-c>', 'Capture Screenshot')
 
+        loadouts = cur2.execute("SELECT * from loadout").fetchall()
+        if loadouts != []:
+            menuEnables[0] = True
+        else:
+            menuEnables[0] = False
+
         if loaded:
             event, values = window.read(timeout=0)
             headers = updateSlotHeaders(newChassis, window)
@@ -4162,10 +4238,12 @@ def main():
             doWeaponCalculations(window)
             doPropulsionCalculations(window)
             updateOverloadMults(window)
-            window['menu'].update(menu_def_save_enabled)
             chassis = newChassis
             chassisMass = newChassisMass
             updateProfile(window)
+            menuEnables[1] = True
+
+        window['menu'].update(setMenus(menuEnables))
 
         try:
             gist = get(versionURL).text.split('\n\n')
@@ -4203,7 +4281,6 @@ def main():
                     updateMassStrings(newChassisMass, window)
                     Lists = updateParts(newChassis)
                     updateDropdowns(Lists, window, values, False, headers)
-                    window['menu'].update(menu_def_save_enabled)
                     chassis = newChassis
                     chassisMass = newChassisMass
                     doPropulsionCalculations(window)
@@ -4211,6 +4288,10 @@ def main():
 
             if event == 'Save Loadout':
                 saveLoadout(window)
+
+            if event == 'Save Loadout As':
+                newName = saveLoadoutAs(window)
+                window['loadoutname'].update(newName)
 
             if event == 'Open Loadout':
                 [newChassis, newChassisMass, loaded] = loadLoadout(window)
@@ -4224,7 +4305,6 @@ def main():
                     doWeaponCalculations(window)
                     doPropulsionCalculations(window)
                     updateOverloadMults(window)
-                    window['menu'].update(menu_def_save_enabled)
                     chassis = newChassis
                     chassisMass = newChassisMass
                     updateProfile(window)                
@@ -4298,6 +4378,8 @@ def main():
                     rect = (rect[0]+8+1123+36, rect[1]+51+235+195+8+8+8+1+28, rect[2]-8-8-35, rect[3]-8-87-8-8-7)
                 else:
                     rect = (rect[0]+8, rect[1]+51, rect[2]-8, rect[3]-8)
+                rect = [displayScaleFactor * x for x in rect]
+                rect = [np.ceil(rect[0]),np.ceil(rect[1]),np.floor(rect[2]),np.floor(rect[3])]
                 grab = ImageGrab.grab(bbox=rect, all_screens=True)
                 screencapOutput = BytesIO()
                 grab.convert("RGB").save(screencapOutput,"BMP")
@@ -4395,6 +4477,64 @@ def main():
             if event == "Quit" or event == sg.WINDOW_CLOSE_ATTEMPTED_EVENT:
                 doExitSave(window)
                 break
+
+            currLoadout = window['loadoutname'].get()
+
+            loadoutStats = [
+                values['frontarmorselection'], 
+                values['reararmorselection'], 
+                values['boosterselection'], 
+                values['capselection'], 
+                values['chselection'],  
+                values['diselection'], 
+                values['engineselection'], 
+                values['reactorselection'], 
+                values['shieldselection'],  
+                values['slot1selection'], 
+                values['slot2selection'], 
+                values['slot3selection'], 
+                values['slot4selection'], 
+                values['slot5selection'], 
+                values['slot6selection'], 
+                values['slot7selection'], 
+                values['slot8selection'], 
+                values['slot1packselection'], 
+                values['slot2packselection'], 
+                values['slot3packselection'], 
+                values['slot4packselection'], 
+                values['slot5packselection'], 
+                values['slot6packselection'], 
+                values['slot7packselection'], 
+                values['slot8packselection'], 
+                values['reactoroverloadlevel'], 
+                values['engineoverloadlevel'], 
+                values['capacitoroverchargelevel'], 
+                values['weaponoverloadlevel'], 
+                values['shieldadjustsetting']
+                ]
+
+            savedLoadouts = cur2.execute('SELECT * FROM loadout').fetchall()
+            if savedLoadouts != []:
+                menuEnables[0] = True
+            else:
+                menuEnables[0] = False
+
+            try:
+                loadoutLastSave = [x for x in cur2.execute('SELECT * FROM loadout WHERE name = ?', [currLoadout]).fetchall()[0]][3:]
+                if loadoutStats != loadoutLastSave:
+                    menuEnables[1] = True
+                    menuEnables[2] = True
+                elif currLoadout != '':
+                    menuEnables[1] = True
+                    menuEnables[2] = False
+                else:
+                    menuEnables[1] = False
+                    menuEnables[2] = False
+            except:
+                menuEnables[1] = False
+                menuEnables[2] = False
+
+            window['menu'].update(setMenus(menuEnables))
 
         window.close()
         tables.close()
