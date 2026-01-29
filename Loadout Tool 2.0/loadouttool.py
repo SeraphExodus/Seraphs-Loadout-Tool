@@ -4262,7 +4262,9 @@ def main():
                     return
 
         while True:
-            event, values = window.read(timeout=250)
+            event, values = window.read()
+
+            delta = False
 
             Lists = updateParts(window['chassistype'].get())
             if chassis == '':
@@ -4285,6 +4287,7 @@ def main():
                     chassisMass = newChassisMass
                     doPropulsionCalculations(window)
                     updateProfile(window)
+                    delta = True
 
             if event == 'Save Loadout':
                 saveLoadout(window)
@@ -4307,7 +4310,8 @@ def main():
                     updateOverloadMults(window)
                     chassis = newChassis
                     chassisMass = newChassisMass
-                    updateProfile(window)                
+                    updateProfile(window)
+                    delta = True       
 
             if event == 'Add and Manage Components':
                 modified = manageComponents()
@@ -4343,9 +4347,7 @@ def main():
                     'You must remake these components using this version of the tool and add them back to your loadouts.',
                     ''], ['Proceed','Cancel'],0,[[headerFont] + [summaryFont] * 9, ['center','left','left','left','left','left','center','center','center','center']])
                 if confirm == "Proceed":
-                    verify = importBackupData()
-                    if verify:
-                        window['menu'].update(menu_def_save_enabled)
+                    importBackupData()
 
             if event == 'Check for Updates':
                 try:
@@ -4370,6 +4372,7 @@ def main():
                 result = alert("Alert", ['Are you sure? This will overwrite all currently-inputted components and FC program settings.'], ['Yes','Cancel'], 0)
                 if result == "Yes":
                     clearLoadout(window, "parts")
+                    delta = True
 
             if event == 'Capture Screenshot':
                 appWindow = FindWindow(None, "Seraph's Loadout Tool V" + currentVersion)
@@ -4391,65 +4394,78 @@ def main():
                 refreshReactor(window, values['reactorselection'])
                 updateMassStrings(chassisMass, window)
                 updateDrainStrings(window)
+                delta = True
 
             if event == 'engineselection':
                 refreshEngine(window, values['engineselection'])
                 updateMassStrings(chassisMass, window)
                 updateDrainStrings(window)
                 doPropulsionCalculations(window)
+                delta = True
 
             if event == 'boosterselection':
                 refreshBooster(window, values['boosterselection'])
                 updateMassStrings(chassisMass, window)
                 updateDrainStrings(window)
                 doPropulsionCalculations(window)
+                delta = True
 
             if event == 'shieldselection':
                 refreshShield(window, values['shieldselection'], values['shieldadjustsetting'])
                 updateMassStrings(chassisMass, window)
                 updateDrainStrings(window)
+                delta = True
 
             if event == 'frontarmorselection':
                 refreshFrontArmor(window, values['frontarmorselection'])
                 updateMassStrings(chassisMass, window)
+                delta = True
             
             if event == 'reararmorselection':
                 refreshRearArmor(window, values['reararmorselection'])
                 updateMassStrings(chassisMass, window)
+                delta = True
 
             if event == 'diselection':
                 refreshDI(window, values['diselection'])
                 updateMassStrings(chassisMass, window)
                 updateDrainStrings(window)
+                delta = True
 
             if event == 'chselection':
                 refreshCH(window, values['chselection'])
                 updateMassStrings(chassisMass, window)
+                delta = True
 
             if event == 'capselection':
                 refreshCapacitor(window, values['capselection'])
                 updateMassStrings(chassisMass, window)
                 updateDrainStrings(window)
                 doWeaponCalculations(window)
+                delta = True
 
             if 'pack' in event:
                 refreshPack(window, values[event], int(event[4]))
                 doWeaponCalculations(window)
+                delta = True
             elif 'slot' in event:
                 refreshSlot(window, values[event], int(event[4]))
                 updateMassStrings(chassisMass, window)
                 updateDrainStrings(window)
                 doWeaponCalculations(window)
+                delta = True
 
             if event == 'reactoroverloadlevel' or event == 'engineoverloadlevel' or event == 'capacitoroverchargelevel' or event == 'weaponoverloadlevel':
                 updateOverloadMults(window)
                 updateDrainStrings(window)
                 doWeaponCalculations(window)
                 doPropulsionCalculations(window)
+                delta = True
             
             if event == 'shieldadjustsetting':
                 updateOverloadMults(window)
                 refreshShield(window, values['shieldselection'], values['shieldadjustsetting'])
+                delta = True
 
             if event == 'About':
                 #Need to update the alert function somehow to allow making clickable hyperlinks. Looks like it's gonna be a pain, though.
@@ -4473,68 +4489,69 @@ def main():
                 lootLookupProcess = multiprocessing.Process(target=lootLookup,args=())
                 lootLookupProcess.daemon = True
                 lootLookupProcess.start()
+            
+            if delta:
+                currLoadout = window['loadoutname'].get()
+
+                loadoutStats = [
+                    values['frontarmorselection'], 
+                    values['reararmorselection'], 
+                    values['boosterselection'], 
+                    values['capselection'], 
+                    values['chselection'],  
+                    values['diselection'], 
+                    values['engineselection'], 
+                    values['reactorselection'], 
+                    values['shieldselection'],  
+                    values['slot1selection'], 
+                    values['slot2selection'], 
+                    values['slot3selection'], 
+                    values['slot4selection'], 
+                    values['slot5selection'], 
+                    values['slot6selection'], 
+                    values['slot7selection'], 
+                    values['slot8selection'], 
+                    values['slot1packselection'], 
+                    values['slot2packselection'], 
+                    values['slot3packselection'], 
+                    values['slot4packselection'], 
+                    values['slot5packselection'], 
+                    values['slot6packselection'], 
+                    values['slot7packselection'], 
+                    values['slot8packselection'], 
+                    values['reactoroverloadlevel'], 
+                    values['engineoverloadlevel'], 
+                    values['capacitoroverchargelevel'], 
+                    values['weaponoverloadlevel'], 
+                    values['shieldadjustsetting']
+                    ]
+
+                savedLoadouts = cur2.execute('SELECT * FROM loadout').fetchall()
+                if savedLoadouts != []:
+                    menuEnables[0] = True
+                else:
+                    menuEnables[0] = False
+
+                try:
+                    loadoutLastSave = [x for x in cur2.execute('SELECT * FROM loadout WHERE name = ?', [currLoadout]).fetchall()[0]][3:]
+                    if loadoutStats != loadoutLastSave:
+                        menuEnables[1] = True
+                        menuEnables[2] = True
+                    elif currLoadout != '':
+                        menuEnables[1] = True
+                        menuEnables[2] = False
+                    else:
+                        menuEnables[1] = False
+                        menuEnables[2] = False
+                except:
+                    menuEnables[1] = False
+                    menuEnables[2] = False
+
+                window['menu'].update(setMenus(menuEnables))
 
             if event == "Quit" or event == sg.WINDOW_CLOSE_ATTEMPTED_EVENT:
                 doExitSave(window)
                 break
-
-            currLoadout = window['loadoutname'].get()
-
-            loadoutStats = [
-                values['frontarmorselection'], 
-                values['reararmorselection'], 
-                values['boosterselection'], 
-                values['capselection'], 
-                values['chselection'],  
-                values['diselection'], 
-                values['engineselection'], 
-                values['reactorselection'], 
-                values['shieldselection'],  
-                values['slot1selection'], 
-                values['slot2selection'], 
-                values['slot3selection'], 
-                values['slot4selection'], 
-                values['slot5selection'], 
-                values['slot6selection'], 
-                values['slot7selection'], 
-                values['slot8selection'], 
-                values['slot1packselection'], 
-                values['slot2packselection'], 
-                values['slot3packselection'], 
-                values['slot4packselection'], 
-                values['slot5packselection'], 
-                values['slot6packselection'], 
-                values['slot7packselection'], 
-                values['slot8packselection'], 
-                values['reactoroverloadlevel'], 
-                values['engineoverloadlevel'], 
-                values['capacitoroverchargelevel'], 
-                values['weaponoverloadlevel'], 
-                values['shieldadjustsetting']
-                ]
-
-            savedLoadouts = cur2.execute('SELECT * FROM loadout').fetchall()
-            if savedLoadouts != []:
-                menuEnables[0] = True
-            else:
-                menuEnables[0] = False
-
-            try:
-                loadoutLastSave = [x for x in cur2.execute('SELECT * FROM loadout WHERE name = ?', [currLoadout]).fetchall()[0]][3:]
-                if loadoutStats != loadoutLastSave:
-                    menuEnables[1] = True
-                    menuEnables[2] = True
-                elif currLoadout != '':
-                    menuEnables[1] = True
-                    menuEnables[2] = False
-                else:
-                    menuEnables[1] = False
-                    menuEnables[2] = False
-            except:
-                menuEnables[1] = False
-                menuEnables[2] = False
-
-            window['menu'].update(setMenus(menuEnables))
 
         window.close()
         tables.close()
