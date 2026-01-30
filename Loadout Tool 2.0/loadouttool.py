@@ -2867,7 +2867,8 @@ def componentLibrary():
 
             inUseList = [x[2:] for x in [y[0] for y in cur2.execute("SELECT name FROM " + compType).fetchall()] if '¤' in x]
             compList = [x[1] for x in compLib if x[0] == selectedCompType and x[1] not in inUseList]
-            compLibWindow['complistbox'].update(compList)
+            scrollPosition = min(len(compList)-1,compSelectBuffer[-1])
+            compLibWindow['complistbox'].update(compList,scroll_to_index=scrollPosition)
 
         if event == "Exit" or event == sg.WIN_CLOSED:
             break
