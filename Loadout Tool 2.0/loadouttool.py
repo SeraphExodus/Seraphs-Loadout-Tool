@@ -2788,6 +2788,7 @@ def componentLibrary():
     compLibWindow.bind('<Escape>', 'Exit')
 
     compSelectBuffer = []
+    modified = False
 
     while True:
         event, values = compLibWindow.read()
@@ -2851,29 +2852,34 @@ def componentLibrary():
                 pass
 
         if event == 'Add Selected Components':
-            compType = values['comptypeselect'][0].lower().replace(" ","").replace("/","").replace(".","")
-            compList = values['complistbox']
-            compStatNames = [x.lower().replace(" ", "").replace("/", "").replace(".", "") for x in cur.execute('SELECT * FROM component WHERE type = ?',values['comptypeselect']).fetchall()[0][1:] if (x != '' and len(x) > 2 and ':' not in x)]
-            bindings = ('?, ' * (len(compStatNames)+1))[:-2]
-            statString = 'name, '
-            for i in compStatNames:
-                statString += i + ', '
-            statString = statString[:-2]
-            addList = [[y for y in x[1:] if y != ''] for x in compLib if x[1] in compList]
-            for i in range(len(addList)):
-                addList[i][0] = '¤ ' + addList[i][0]
-            cur2.executemany("INSERT OR REPLACE INTO " + compType + "(" + statString + ") VALUES(" + bindings + ")", addList)
-            compdb.commit()
+            try:
+                compType = values['comptypeselect'][0].lower().replace(" ","").replace("/","").replace(".","")
+                compList = values['complistbox']
+                compStatNames = [x.lower().replace(" ", "").replace("/", "").replace(".", "") for x in cur.execute('SELECT * FROM component WHERE type = ?',values['comptypeselect']).fetchall()[0][1:] if (x != '' and len(x) > 2 and ':' not in x)]
+                bindings = ('?, ' * (len(compStatNames)+1))[:-2]
+                statString = 'name, '
+                for i in compStatNames:
+                    statString += i + ', '
+                statString = statString[:-2]
+                addList = [[y for y in x[1:] if y != ''] for x in compLib if x[1] in compList]
+                for i in range(len(addList)):
+                    addList[i][0] = '¤ ' + addList[i][0]
+                cur2.executemany("INSERT OR REPLACE INTO " + compType + "(" + statString + ") VALUES(" + bindings + ")", addList)
+                compdb.commit()
+                modified = True
 
-            inUseList = [x[2:] for x in [y[0] for y in cur2.execute("SELECT name FROM " + compType).fetchall()] if '¤' in x]
-            compList = [x[1] for x in compLib if x[0] == selectedCompType and x[1] not in inUseList]
-            scrollPosition = min(len(compList)-1,compSelectBuffer[-1])
-            compLibWindow['complistbox'].update(compList,scroll_to_index=scrollPosition)
+                inUseList = [x[2:] for x in [y[0] for y in cur2.execute("SELECT name FROM " + compType).fetchall()] if '¤' in x]
+                compList = [x[1] for x in compLib if x[0] == selectedCompType and x[1] not in inUseList]
+                scrollPosition = min(len(compList)-1,compSelectBuffer[-1])
+                compLibWindow['complistbox'].update(compList,scroll_to_index=scrollPosition)
+            except:
+                pass
 
         if event == "Exit" or event == sg.WIN_CLOSED:
             break
     
     compLibWindow.close()
+    return modified
 
 def manageComponents():
     sg.theme('Discord_Dark')
@@ -3045,7 +3051,7 @@ def manageComponents():
         
         if event == "Add from Library":
             lastSelection = componentWindow['partname'].get()
-            componentLibrary()
+            modified = componentLibrary()
             remodalize(componentWindow)
             [components, componentNames, componentArray] = getComponentStats() 
             try:

@@ -46,5 +46,6 @@ def buildComponentList(dataDir):
 
     for i in range(0, len(statsList)):
         cur2.execute("CREATE TABLE " + headerList[i] + "(" + statsList[i] + ")")
+        
     compdb.commit()
     compdb.close()

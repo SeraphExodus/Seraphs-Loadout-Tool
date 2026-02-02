@@ -505,9 +505,12 @@ def calculateBestSources(lootLookupWindow, *selection):
             rareRate = 0.65
             tableRates = [standardRate, rareRate]
         elif 'beacon' in i[0]:
+            pCount = int(i[0][-1])
+            grpMod = int((pCount*4)+(pCount/2))
             standardRate = 0.31
             rewardRate = 0.1
             rareRate = 0.51
+            deadRate = 0
             tableRates = [standardRate, rewardRate, rareRate]
         else:
             tableRates = [1/len(subTables)] * len(subTables)
@@ -543,8 +546,11 @@ def calculateBestSources(lootLookupWindow, *selection):
         if 'Convoy Reward' in i[0]:
             tier = int(i[0].split('Tier ')[1][0])
             lineString = ' Crates (' + formatRarity((3 + 2 * tier) * int(1/i[1]))[5:] + ' Items)'
-        elif 'Beacon' in i[0] or 'Space Battle' in i[0]:
+        elif 'Beacon' in i[0]:
+            pCount = int(i[0].split(' Player ')[0][-1])
             lineString = ' Crates (' + formatRarity(30 * int(1/i[1]))[5:] + ' Items)'
+        elif 'Space Battle' in i[0]:
+            lineString = ' Crates (' + formatRarity(12 * int(1/i[1]))[5:] + ' Items)'
         elif 'Kash Nunes' in i[0]:
             tokenRatio = level * 5 + 50
             lineString = ' (' + formatRarity((int(1/i[1]) * tokenRatio))[5:] + ' Tokens)'
