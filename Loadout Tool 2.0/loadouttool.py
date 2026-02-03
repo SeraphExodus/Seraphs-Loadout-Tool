@@ -1799,7 +1799,7 @@ def createLoadout(*editArgs):
                             try:
                                 cur2.execute("INSERT OR REPLACE INTO loadout VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",valueList)
                             except:
-                                alert('Error',['Error: An unknown issue occurred when attempting to save this loadout. Make a post on my Discord detailing what happened so I can investigate.','-Seraph'],[],10)
+                                alert('Error',['Error: An unknown issue occurred when attempting to save this loadout. Make a post on my Discord detailing what happened so I can investigate.','-Seraph','Error source: Create loadout',valueList],[],10)
                                 remodalize(createLoadoutWindow)
                             break
                 elif editing:
@@ -1812,7 +1812,7 @@ def createLoadout(*editArgs):
                                 cur2.execute("DELETE FROM loadout WHERE name = ?",[oldName])
                                 cur2.execute("INSERT INTO loadout VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",valueList)
                             except:
-                                alert('Error',['Error: An unknown issue occurred when attempting to save this loadout. Make a post on my Discord detailing what happened so I can investigate.','-Seraph'],[],10)
+                                alert('Error',['Error: An unknown issue occurred when attempting to save this loadout. Make a post on my Discord detailing what happened so I can investigate.','-Seraph','Error source: Edit loadout',oldName,oldLoadout,valueList],[],10)
                                 remodalize(createLoadoutWindow)
                             break
 
