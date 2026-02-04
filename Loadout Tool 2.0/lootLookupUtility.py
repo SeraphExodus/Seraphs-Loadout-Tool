@@ -506,11 +506,11 @@ def calculateBestSources(lootLookupWindow, *selection):
             tableRates = [standardRate, rareRate]
         elif 'beacon' in i[0]:
             pCount = int(i[0][-1])
-            grpMod = int((pCount*4)+(pCount/2))
-            standardRate = 0.31
+            grpMod = int(pCount*4)
+            standardRate = 0.7-grpMod/100 #This shit needs to be updated soon once I get some more comprehensive data on how fastKillMod is working. This is a *stopgap* estimation.
             rewardRate = 0.1
-            rareRate = 0.51
-            deadRate = 0
+            rareRate = ((100-(pCount**2)/15) - (80-grpMod))/100
+            deadRate = 1-(standardRate + rewardRate + rareRate)
             tableRates = [standardRate, rewardRate, rareRate]
         else:
             tableRates = [1/len(subTables)] * len(subTables)
@@ -547,8 +547,15 @@ def calculateBestSources(lootLookupWindow, *selection):
             tier = int(i[0].split('Tier ')[1][0])
             lineString = ' Crates (' + formatRarity((3 + 2 * tier) * int(1/i[1]))[5:] + ' Items)'
         elif 'Beacon' in i[0]:
-            pCount = int(i[0].split(' Player ')[0][-1])
-            lineString = ' Crates (' + formatRarity(30 * int(1/i[1]))[5:] + ' Items)'
+            pCount = int(i[0].split(' Player')[0][-1])
+            if pCount == 1:
+                randCount = 3
+            elif pCount >= 7:
+                randCount = 4
+            else:
+                randCount = 2
+            itemCount = 23 + 2*pCount + randCount/2
+            lineString = ' Crates (' + formatRarity(itemCount * int(1/i[1]))[5:] + ' Items)'
         elif 'Space Battle' in i[0]:
             lineString = ' Crates (' + formatRarity(12 * int(1/i[1]))[5:] + ' Items)'
         elif 'Kash Nunes' in i[0]:
