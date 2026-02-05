@@ -623,7 +623,7 @@ def getShipInfo(selection):
 
     shipType = cur.execute("SELECT shiptype FROM npcships WHERE type = ?",[selectionSplit]).fetchall()[0][0]
     if shipType == '':
-        alert('Alert',["Sorry, I don't have data available for this ship type.","It's most likely either a Legends-exclusive or a non-ship entry in the list."],[],5)
+        alert('Alert',["Sorry, I don't have data available for this ship type.","It's most likely either a Legends exclusive or a non-ship entry in the list."],[],5)
         return
     try:
         shipData = list(cur.execute("SELECT * FROM shiptypes WHERE name = ?",[shipType]).fetchall()[0])
@@ -1367,8 +1367,24 @@ def lootLookup():
                 lootLookupWindow['dropcounttext2'].update('Chance per Roll: ',visible=True)
                 lootLookupWindow['dropcounttext3'].update('Avg. Items Dropped: ',visible=True)
                 rate = dropRates[shipStrings.index(entry)]
-                if 'convoy' in entry and 'crate' in entry:
-                    totalDrops = str(int(dropCounts[shipStrings.index(entry)])-1) + ' - ' + str(int(dropCounts[shipStrings.index(entry)])+1)
+                if ('convoy' in entry or 'beacon' in entry) and 'crate' in entry:
+                    if 'convoy' in entry:
+                        totalDrops = str(int(dropCounts[shipStrings.index(entry)])-1) + ' - ' + str(int(dropCounts[shipStrings.index(entry)])+1)
+                    else:
+                        pCount = int(entry[-2])
+                        if pCount == 8:
+                            baseMod = 2
+                        else:
+                            baseMod = 0
+                        if pCount == 1:
+                            randMod = 3
+                        elif pCount >= 7:
+                            randMod = 4
+                        else:
+                            randMod = 2
+                        minDrops = 23 + 2*pCount + baseMod
+                        maxDrops = minDrops + randMod
+                        totalDrops = str(minDrops) + ' - ' + str(maxDrops)
                     lootLookupWindow['dropcountvalue1'].update(totalDrops,visible=True)
                     lootLookupWindow['dropcountvalue2'].update(str((tryFloat(round(rate*100,2)))) + '%',visible=True)
                     lootLookupWindow['dropcountvalue3'].update(dropCounts[shipStrings.index(entry)],visible=True)
