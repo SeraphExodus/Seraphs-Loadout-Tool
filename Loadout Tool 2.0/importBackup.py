@@ -54,7 +54,7 @@ global cur
 global compdb
 global cur2
 
-tables = sqlite3.connect("file:tables.db?mode=ro", uri=True)
+tables = sqlite3.connect("file:"+os.path.abspath(os.path.join(os.path.dirname(__file__), 'tables.db'))+"?mode=ro", uri=True)
 cur = tables.cursor()
 
 compdb = sqlite3.connect("file:"+os.getenv("APPDATA")+"\\Seraph's Loadout Tool\\savedata.db?mode=rw", uri=True)

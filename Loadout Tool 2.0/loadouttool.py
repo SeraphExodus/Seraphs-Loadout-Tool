@@ -1725,14 +1725,12 @@ def createLoadout(*editArgs):
         oldLoadout = cur2.execute("SELECT * FROM loadout WHERE name = ?",[oldName]).fetchall()[0]
         oldChassis = oldLoadout[1]
         oldMass = oldLoadout[2]
-        chassisDisable = True
     else:
         editing = False
         oldName = ''
         titleString = "Create New Loadout"
         oldChassis = 'Select Chassis'
         oldMass = ''
-        chassisDisable = False
 
     for i in range(0, len(chassisRaw)):
         chassisList.append(chassisRaw[i][0])
@@ -1746,7 +1744,7 @@ def createLoadout(*editArgs):
 
     inputColumn = [
         [sg.Input(oldName, font=baseFont, key='name', s=26)],
-        [sg.Combo(chassisList, default_value=oldChassis, font=baseFont, key='chassis', s=24, enable_events=True, readonly=True, disabled=chassisDisable)],
+        [sg.Combo(chassisList, default_value=oldChassis, font=baseFont, key='chassis', s=24, enable_events=True, readonly=True)],
         [sg.Input(oldMass, font=baseFont, key='mass', s=11, enable_events=True), sg.Text("", key='maxmass', font=baseFont), sg.Push()],
     ]
 
@@ -1803,9 +1801,76 @@ def createLoadout(*editArgs):
                                 remodalize(createLoadoutWindow)
                             break
                 elif editing:
+                    selection = oldName #Easier to just adapt the code from the duplication setup
+                    loadoutList = [x for x in cur2.execute("SELECT * FROM loadout").fetchall()]
+
+                    chassisData = cur.execute("SELECT * FROM chassis").fetchall()
+
+                    cmList = [x[0] for x in cur2.execute("SELECT name FROM countermeasurelauncher").fetchall()] #Code to handle changing chassis - ensure user is notified if components need to be dropped to fit and map remaining components to new slots in an orderly fashion
+                    ordList = [x[0] for x in cur2.execute("SELECT name FROM ordnancelauncher").fetchall()]
+                    weaponList = [x[0] for x in cur2.execute("SELECT name FROM weapon").fetchall()]
+
+                    slotCompList = [x  if x != 'None' else '' for x in list([x[12:28] for x in loadoutList if x[0] == selection][0])]
+                    slotCompTypes = []
+                    for i in range(0,8):
+                        if slotCompList[i] in ['None','']:
+                            slotCompTypes.append([0])
+                        elif slotCompList[i] in cmList:
+                            slotCompTypes.append([4])
+                        elif slotCompList[i] in ordList:
+                            slotCompTypes.append([3])
+                        elif slotCompList[i] in weaponList:
+                            slotCompTypes.append([2,1])
+                        else:
+                            slotCompTypes.append([0])
+
+                    newChassis = valueList[1]
+                    newSlots = [x[2:10] for x in chassisData if x[0] == newChassis][0] #important: we don't care about the selection's *slots*, only the types of components that are loaded.
+                    slotCompatibility = []
+                    for i in range(0,8):
+                        currSlot = []
+                        if 'CM' in newSlots[i] or 'Countermeasures' in newSlots[i]:
+                            currSlot.append(4)
+                        if 'Ordnance' in newSlots[i]:
+                            currSlot.append(3)
+                        if 'Weapon' in newSlots[i] and 'Turret' not in newSlots[i]:
+                            currSlot.append(2)
+                        if 'Turret' in newSlots[i]:
+                            currSlot.append(1)
+                        slotCompatibility.append(currSlot)
+
+                    compOrder = [4,3,2,1]
+
+                    newSlotList = [''] * 16 #we'll also move packs as appropriate
+
+                    remainingSlots = [0,1,2,3,4,5,6,7]
+                    remainingSources = [0,1,2,3,4,5,6,7]
+
+                    for k in compOrder:
+                        for j in remainingSources:
+                            if j != '':
+                                if k in slotCompTypes[j]:
+                                    for i in remainingSlots:
+                                        if k in slotCompatibility[i]:                       
+                                            newSlotList[i] = slotCompList[j] #map slots
+                                            newSlotList[i+8] = slotCompList[j+8] #map associated packs if any
+                                            remainingSlots.remove(i)
+                                            remainingSources[j] = ''
+                                            slotCompList[j] = ''
+                                            slotCompList[j+8] = ''
+                                            break
+
+                    droppedCompFlag = False
+                    if any([x != '' for x in slotCompList]):
+                        droppedCompFlag = True
+                    
                     valueList += oldLoadout[3:]
+                    valueList[12:28] = newSlotList
+
                     if valueList != oldLoadout:
                         decision = alert("Alert",["You are about to overwrite your existing loadout. Do you wish to continue?"],['Proceed', 'Cancel'],0)
+                        if droppedCompFlag and decision == 'Proceed':
+                            decision = alert('Warning',["Warning: The target chassis doesn't have slots to accommodate all of the source loadout's components.","Incompatible components will be unslotted. Continue anyway?"],['Proceed','Cancel'],0)
                         remodalize(createLoadoutWindow)
                         if decision == 'Proceed':
                             try:
@@ -1815,6 +1880,7 @@ def createLoadout(*editArgs):
                                 alert('Error',['Error: An unknown issue occurred when attempting to save this loadout. Make a post on my Discord detailing what happened so I can investigate.','-Seraph','Error source: Edit loadout',oldName,oldLoadout,valueList],[],10)
                                 remodalize(createLoadoutWindow)
                             break
+                        
 
         if event == "Exit" or event == sg.WIN_CLOSED or event == 'Cancel':
             break
@@ -1834,19 +1900,19 @@ def duplicateLoadout(selection):
     ordList = [x[0] for x in cur2.execute("SELECT name FROM ordnancelauncher").fetchall()]
     weaponList = [x[0] for x in cur2.execute("SELECT name FROM weapon").fetchall()]
 
-    slotCompList = [x[12:28] for x in loadoutList if x[0] == selection][0]
+    slotCompList = slotCompList = [x  if x != 'None' else '' for x in list([x[12:28] for x in loadoutList if x[0] == selection][0])]
     slotCompTypes = []
     for i in range(0,8):
         if slotCompList[i] in ['None','']:
-            slotCompTypes.append(0)
+            slotCompTypes.append([0])
         elif slotCompList[i] in cmList:
-            slotCompTypes.append(3)
+            slotCompTypes.append([4])
         elif slotCompList[i] in ordList:
-            slotCompTypes.append(2)
+            slotCompTypes.append([3])
         elif slotCompList[i] in weaponList:
-            slotCompTypes.append(1)
+            slotCompTypes.append([2,1])
         else:
-            slotCompTypes.append(0)
+            slotCompTypes.append([0])
 
     chassisData = cur.execute("SELECT * FROM chassis").fetchall()
     chassisList = [chassisType] + [x[0] for x in chassisData if x[0] != chassisType]
@@ -1896,33 +1962,43 @@ def duplicateLoadout(selection):
             for i in range(0,8):
                 currSlot = []
                 if 'CM' in newSlots[i] or 'Countermeasures' in newSlots[i]:
-                    currSlot.append(3)
+                    currSlot.append(4)
                 if 'Ordnance' in newSlots[i]:
+                    currSlot.append(3)
+                if 'Weapon' in newSlots[i] and 'Turret' not in newSlots[i]:
                     currSlot.append(2)
-                if 'Weapon' in newSlots[i]:
+                if 'Turret' in newSlots[i]:
                     currSlot.append(1)
                 slotCompatibility.append(currSlot)
 
-            compOrder = [3, 2, 1]
+            compOrder = [4,3,2,1]
 
             newSlotList = [''] * 16 #we'll also move packs as appropriate
 
             remainingSlots = [0,1,2,3,4,5,6,7]
+            remainingSources = [0,1,2,3,4,5,6,7]
+
+            print(slotCompList)
+            print(slotCompatibility)
 
             for k in compOrder:
-                for j in range(0,8):
-                    if slotCompTypes[j] == k:
-                        for i in remainingSlots:
-                            if slotCompTypes[j] in slotCompatibility[i]:
-                                newSlotList[i] = slotCompList[j] #map slots
-                                newSlotList[i+8] = slotCompList[j+8] #map associated packs if any
-                                remainingSlots.remove(i)
-                                break
-
+                for j in remainingSources:
+                    if j != '':
+                        if k in slotCompTypes[j]:
+                            for i in remainingSlots:
+                                if k in slotCompatibility[i]:                       
+                                    newSlotList[i] = slotCompList[j] #map slots
+                                    newSlotList[i+8] = slotCompList[j+8] #map associated packs if any
+                                    remainingSlots.remove(i)
+                                    remainingSources[j] = ''
+                                    slotCompList[j] = ''
+                                    slotCompList[j+8] = ''
+                                    break
+            
+            print(slotCompList)
             droppedCompFlag = False
-            for i in slotCompList:
-                if i not in newSlotList and i not in ['', 'None']:
-                    droppedCompFlag = True
+            if any([x != '' for x in slotCompList]):
+                droppedCompFlag = True
 
             newName = values['newname']
             if newName in [x[0] for x in loadoutList]:
@@ -1943,7 +2019,7 @@ def duplicateLoadout(selection):
                         cur2.execute("INSERT INTO loadout VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",loadoutData)
                         dupeName = newName
                     except:
-                        alert('Error',['Error: An unknown issue occurred when attempting to duplicate this loadout. Make a post on my Discord detailing what happened so I can investigate.','-Seraph'],[],10)
+                        alert('Error',['Error: An unknown issue occurred when attempting to duplicate this loadout. Make a post on my Discord detailing what happened so I can investigate.','-Seraph','Error Source: Writing duplicated loadout to db'],[],3)
                         remodalize(dupeWindow)
                     break
 
@@ -3402,11 +3478,15 @@ def main():
             os.makedirs(dataDir)
 
         if os.path.exists('Data\\savedata.db'):
-            shutil.move('Data\\savedata.db', dataDir + '\\savedata.db')
+            if os.path.exists(dataDir + '\\savedata.db'):
+                alert('Fatal Error',['Fatal Error: A savedata.db file was located in '+dataDir+", but another one was also found in this directory's Data folder.",'Please resolve the conflict by deleting one of the two savedata files before attempting to load the tool.'],['Okay'],0)
+                return
+            else:
+                shutil.move('Data\\savedata.db', dataDir + '\\savedata.db')
         else:
             buildComponentList(dataDir)
     except:
-        alert('Fatal Error',['Fatal error when attempting to create or relocate savedata.db. Unable to find destination folder','If you are seeing this message, please contact me ASAP - Seraph'],['Okay',0])
+        alert('Fatal Error',['Fatal error when attempting to create or relocate savedata.db. Unable to find destination folder','If you are seeing this message, please contact me ASAP - Seraph'],['Okay'],0)
         return
 
     if os.path.exists('Data\\tables.db'): #Clears tables.db as it will now be included in the exe.
@@ -3425,7 +3505,7 @@ def main():
     global compdb
     global cur2
 
-    tables = sqlite3.connect('file:tables.db?mode=ro', uri=True)
+    tables = sqlite3.connect("file:"+os.path.abspath(os.path.join(os.path.dirname(__file__), 'tables.db'))+"?mode=ro", uri=True)
     cur = tables.cursor()
 
     compdb = sqlite3.connect('file:'+ dataDir +'\\savedata.db?mode=rw', uri=True)

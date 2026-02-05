@@ -82,7 +82,7 @@ sg.theme('Discord_Dark')
 global tables
 global cur
 
-tables = sqlite3.connect("file:tables.db?mode=ro", uri=True)
+tables = sqlite3.connect("file:"+os.path.abspath(os.path.join(os.path.dirname(__file__), 'tables.db'))+"?mode=ro", uri=True)
 cur = tables.cursor()
 
 specialSources = ['Convoy Crate', 'Kash Nunes', 'Space Battle Reward', 'Lord Cyssc', "Nym's Starmap", 'High-Tier', 'Beacon', 'GCW2 Reward']
