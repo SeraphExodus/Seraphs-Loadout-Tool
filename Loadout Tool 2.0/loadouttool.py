@@ -19,11 +19,7 @@ from requests import get
 from webbrowser import open as browserOpen
 from win32gui import FindWindow, GetWindowRect
 
-from buildCompList import buildComponentList
-from fcCalcUtility import fcCalc
-from importBackup import importBackupData
-from lootLookupUtility import lootLookup
-from reCalcUtility import reCalc
+from buildCompList import buildComponentList #Not dependent on dbs existing until it's actually executed
 
 versionOverride = False #Set true to omit version checking for test releases. Set false for any actual release.
 
@@ -137,6 +133,123 @@ sg.theme_add_new('Discord_Dark', theme_definition)
 
 sg.theme('Discord_Dark')
 
+def alert(headerText, textLines, buttons, timeout, *settings): #define alert so we can use it for the db setup stuff if needed
+    Layout = []
+
+    try:
+        textSettings = settings[0]
+        dimensions = settings[1]
+    except:
+        textSettings = []
+        dimensions = []
+
+    if len(textLines) > 0:
+        for i in range(0,len(textLines)):
+            try:
+                textFont = textSettings[0][i]
+            except:
+                textFont = summaryFont
+            try:
+                textJust = textSettings[0][i]
+            except:
+                textJust = 'center'
+            
+            Line = sg.Text(textLines[i],font=textFont, p=fontPadding)
+            if textJust == 'left':
+                Layout.append([Line,sg.Push()])
+            elif textJust == 'right':
+                Layout.append([sg.Push(),Line])
+            else:
+                Layout.append([sg.Push(),Line,sg.Push()])
+
+    if len(dimensions) == 2 and 0 not in dimensions:
+        Layout = [
+            [sg.Frame('',[[sg.VPush()],Layout[0],[sg.VPush()]],size=(dimensions[0],dimensions[1]),border_width=0)]
+        ]
+
+    buttonList = [sg.Push(),sg.Push()]
+    if len(buttons) > 0:
+        for i in buttons:
+            buttonList.append(sg.Button(i,font=buttonFont, button_color=bgColor))
+            buttonList.append(sg.Push())
+        buttonList.append(sg.Push())
+        Layout.append(buttonList)
+
+    alertWindow = sg.Window(headerText,Layout,modal=True,icon=os.path.abspath(os.path.join(os.path.dirname(__file__), 'SLT_Icon.ico')), )
+
+    if timeout > 0:
+        startTime = datetime.now()
+        currTime = startTime
+        while currTime < startTime + timedelta(seconds=timeout):
+            event, values = alertWindow.read(timeout=10)
+            if event in buttons or event == sg.WIN_CLOSED:
+                alertWindow.close()
+                return event
+            currTime = datetime.now()
+        alertWindow.close()
+        return
+    
+    while True:
+        event, values = alertWindow.read()
+        if event in buttons or event == sg.WIN_CLOSED:
+            alertWindow.close()
+            return event
+
+### Updates deprecated file structure and sets up saved data storage if needed ###
+
+#Checks for existing Data\savedata.db files and moves them to their new home in Appdata. If there is no active savedata.db file, creates a new one in appdata. Deletes deprecated Data folder if it exists and has a tables.db file in it.
+exitCond1 = False
+
+try:
+    dataDir = os.getenv('APPDATA') + "\\Seraph's Loadout Tool"
+
+    if not os.path.exists(dataDir):
+        os.makedirs(dataDir)
+
+    if os.path.exists('Data\\savedata.db'):
+        if os.path.exists(dataDir + '\\savedata.db'):
+            alert('Fatal Error',['Fatal Error: A savedata.db file was located in '+dataDir+", but another one was also found in this directory's Data folder.",'Please resolve the conflict by deleting one of the two savedata files before attempting to load the tool.'],['Okay'],0)
+            sys.exit()
+            exitCond1 = True
+        else:
+            shutil.move('Data\\savedata.db', dataDir + '\\savedata.db')
+    else:
+        buildComponentList(dataDir)
+except:
+    if exitCond1:
+        alert('Fatal Error',['Fatal error when attempting to create or relocate savedata.db. Unable to find destination folder','If you are seeing this message, please contact me ASAP - Seraph'],['Okay'],0)
+    sys.exit()
+
+if os.path.exists('Data\\tables.db'): #Clears tables.db as it will now be included in the exe.
+    os.remove('Data\\tables.db')
+    empty = True
+    for x in os.scandir('Data'): #Deletes the Data folder if it's empty (which by now it should be assuming the user didn't put anything else in there)
+        empty = False
+        break
+    if empty:
+        os.removedirs("Data")
+
+#Connect to databases
+
+global tables
+global cur
+global compdb
+global cur2
+
+tables = sqlite3.connect("file:"+os.path.abspath(os.path.join(os.path.dirname(__file__), 'tables.db'))+"?mode=ro", uri=True)
+cur = tables.cursor()
+
+compdb = sqlite3.connect('file:'+ dataDir +'\\savedata.db?mode=rw', uri=True)
+cur2 = compdb.cursor()
+
+##Import utilities at this point once we've got the db paths confirmed
+#Yes, I know this is some sort of crime against python but sue me.
+
+from fcCalcUtility import fcCalc
+from importBackup import importBackupData
+from lootLookupUtility import lootLookup
+from reCalcUtility import reCalc
+
 ######################Tooltips#####################
 fullCapDamageTooltip = """ Approximate damage dealt to a single target by holding 
  down the trigger until your capacitor runs dry. 
@@ -209,6 +322,7 @@ dpShotTooltip = """ Damage numbers are given as approximate average damage per s
 #Debug Util
 def pause():
     alert('Pause',['Paused'],['Continue'],0)
+#End debug util
 
 def remodalize(window):
     try:
@@ -393,68 +507,6 @@ def ceil(x):
         return y
     except:
         SyntaxError
-
-def alert(headerText, textLines, buttons, timeout, *settings):
-    Layout = []
-
-    try:
-        textSettings = settings[0]
-        dimensions = settings[1]
-    except:
-        textSettings = []
-        dimensions = []
-
-    if len(textLines) > 0:
-        for i in range(0,len(textLines)):
-            try:
-                textFont = textSettings[0][i]
-            except:
-                textFont = summaryFont
-            try:
-                textJust = textSettings[0][i]
-            except:
-                textJust = 'center'
-            
-            Line = sg.Text(textLines[i],font=textFont, p=fontPadding)
-            if textJust == 'left':
-                Layout.append([Line,sg.Push()])
-            elif textJust == 'right':
-                Layout.append([sg.Push(),Line])
-            else:
-                Layout.append([sg.Push(),Line,sg.Push()])
-
-    if len(dimensions) == 2 and 0 not in dimensions:
-        Layout = [
-            [sg.Frame('',[[sg.VPush()],Layout[0],[sg.VPush()]],size=(dimensions[0],dimensions[1]),border_width=0)]
-        ]
-
-    buttonList = [sg.Push(),sg.Push()]
-    if len(buttons) > 0:
-        for i in buttons:
-            buttonList.append(sg.Button(i,font=buttonFont, button_color=bgColor))
-            buttonList.append(sg.Push())
-        buttonList.append(sg.Push())
-        Layout.append(buttonList)
-
-    alertWindow = sg.Window(headerText,Layout,modal=True,icon=os.path.abspath(os.path.join(os.path.dirname(__file__), 'SLT_Icon.ico')), )
-
-    if timeout > 0:
-        startTime = datetime.now()
-        currTime = startTime
-        while currTime < startTime + timedelta(seconds=timeout):
-            event, values = alertWindow.read(timeout=10)
-            if event in buttons or event == sg.WIN_CLOSED:
-                alertWindow.close()
-                return event
-            currTime = datetime.now()
-        alertWindow.close()
-        return
-    
-    while True:
-        event, values = alertWindow.read()
-        if event in buttons or event == sg.WIN_CLOSED:
-            alertWindow.close()
-            return event
 
 def popImage(header, filename):
     Layout = [
@@ -3467,49 +3519,6 @@ def setMenus(menuEnables):
     return menu_def
 
 def main():
-
-    ### Updates deprecated file structure and sets up saved data storage if needed ###
-
-    #Checks for existing Data\savedata.db files and moves them to their new home in Appdata. If there is no active savedata.db file, creates a new one in appdata. Deletes deprecated Data folder if it exists and has a tables.db file in it.
-    try:
-        dataDir = os.getenv('APPDATA') + "\\Seraph's Loadout Tool"
-
-        if not os.path.exists(dataDir):
-            os.makedirs(dataDir)
-
-        if os.path.exists('Data\\savedata.db'):
-            if os.path.exists(dataDir + '\\savedata.db'):
-                alert('Fatal Error',['Fatal Error: A savedata.db file was located in '+dataDir+", but another one was also found in this directory's Data folder.",'Please resolve the conflict by deleting one of the two savedata files before attempting to load the tool.'],['Okay'],0)
-                return
-            else:
-                shutil.move('Data\\savedata.db', dataDir + '\\savedata.db')
-        else:
-            buildComponentList(dataDir)
-    except:
-        alert('Fatal Error',['Fatal error when attempting to create or relocate savedata.db. Unable to find destination folder','If you are seeing this message, please contact me ASAP - Seraph'],['Okay'],0)
-        return
-
-    if os.path.exists('Data\\tables.db'): #Clears tables.db as it will now be included in the exe.
-        os.remove('Data\\tables.db')
-        empty = True
-        for x in os.scandir('Data'): #Deletes the Data folder if it's empty (which by now it should be assuming the user didn't put anything else in there)
-            empty = False
-            break
-        if empty:
-            os.removedirs("Data")
-
-    #Connect to databases
-
-    global tables
-    global cur
-    global compdb
-    global cur2
-
-    tables = sqlite3.connect("file:"+os.path.abspath(os.path.join(os.path.dirname(__file__), 'tables.db'))+"?mode=ro", uri=True)
-    cur = tables.cursor()
-
-    compdb = sqlite3.connect('file:'+ dataDir +'\\savedata.db?mode=rw', uri=True)
-    cur2 = compdb.cursor()
 
     if __name__ == '__main__':
         multiprocessing.freeze_support()
