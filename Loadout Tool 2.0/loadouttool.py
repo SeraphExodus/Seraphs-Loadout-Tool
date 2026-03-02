@@ -63,7 +63,7 @@ class Process(multiprocessing.Process):
 ###Upload new version
 ###Update gist with new download link
 
-currentVersion = "2.17.0"
+currentVersion = "2.17.1"
 
 versionURL = "https://gist.github.com/SeraphExodus/8ae0b6980e3780e8782847dbe76b0bf5/raw"
 
@@ -200,6 +200,40 @@ def alert(headerText, textLines, buttons, timeout, *settings): #define alert so 
 #Checks for existing Data\savedata.db files and moves them to their new home in Appdata. If there is no active savedata.db file, creates a new one in appdata. Deletes deprecated Data folder if it exists and has a tables.db file in it.
 exitCond1 = False
 
+def mergeData(dataDir):
+    try:
+        data = sqlite3.connect('file:'+ dataDir +'\\savedata.db?mode=rw', uri=True)
+        curData = data.cursor()
+
+        columnString = ''
+
+        for i in range(0,15):
+            columnString += 'prog' + str(i) + ', '
+
+        for i in range(0,15):
+            columnString += 'incl' + str(i) + ', '
+        columnString = columnString[:-2]
+
+        curData.execute("CREATE TABLE IF NOT EXISTS fcloadout (name UNIQUE, fclevel, dcs, " + columnString + ")") #Adds fc, re, and exitsave tables if they weren't created in the destination db already (i.e. it's a fresh, empty savedata). Maybe think of a better implementation for these later on.
+        curData.execute("CREATE TABLE IF NOT EXISTS reproject (name UNIQUE, compType, reLevel, stat0, stat1, stat2, stat3, stat4, stat5, stat6, stat7, stat8)")
+        curData.execute("CREATE TABLE IF NOT EXISTS exitsave(name, chassis, mass, armor1, armor2, booster, capacitor, cargohold, droidinterface, engine, reactor, shield, slot1, slot2, slot3, slot4, slot5, slot6, slot7, slot8, pack1, pack2, pack3, pack4, pack5, pack6, pack7, pack8, rolevel, eolevel, colevel, wolevel, adjust)")
+        data.commit()
+
+        curData.execute("ATTACH ? AS incoming_db;", [os.path.join('Data\\savedata.db')])
+        curData.execute("ATTACH ? AS target_db;", [os.path.join(dataDir + '\\savedata.db')])
+        dbTables = curData.execute("SELECT name FROM incoming_db.sqlite_master WHERE type='table';").fetchall()
+
+        for tbl in dbTables:
+            sql = "INSERT OR REPLACE INTO " + tbl[0] + " SELECT * FROM incoming_db.[{}];".format(tbl[0])
+            curData.execute(sql)
+            data.commit()
+        
+        curData.execute("DETACH incoming_db;")
+        data.close()
+        return True
+    except:
+        return False
+
 try:
     dataDir = os.getenv('APPDATA') + "\\Seraph's Loadout Tool"
 
@@ -208,9 +242,25 @@ try:
 
     if os.path.exists('Data\\savedata.db'):
         if os.path.exists(dataDir + '\\savedata.db'):
-            alert('Fatal Error',['Fatal Error: A savedata.db file was located in '+dataDir+", but another one was also found in this directory's Data folder.",'Please resolve the conflict by deleting one of the two savedata files before attempting to load the tool.'],['Okay'],0)
-            sys.exit()
-            exitCond1 = True
+            response = alert('Error',[
+                'Error: A savedata.db file was located in '+dataDir+", but another one was also found in this directory's Data folder.",
+                "The savedata located in this folder will be merged into the savedata located in "+dataDir+".",
+                "IMPORTANT: Be aware that component and loadout names must be kept unique.",
+                "If the same component or loadout name is found in both savedata files, the version in this directory's data folder will *overwrite* the version in "+dataDir+".",
+                "Do you wish to proceed with the merger?"
+                ],['Proceed','Cancel'],0)
+            if response == 'Proceed':
+                result = mergeData(dataDir)
+                if result:
+                    alert('Success',['Data merge successful!'],[],2)
+                    os.remove('Data\\savedata.db')
+                else:
+                    alert('Fatal Error',['Fatal Error: Data merge was unsuccessful. Please contact me so I can investigate -Seraph'],[],2)
+                    sys.exit()
+                    exitCond1 = True
+            else:
+                sys.exit()
+                exitCond1 = True
         else:
             shutil.move('Data\\savedata.db', dataDir + '\\savedata.db')
     else:

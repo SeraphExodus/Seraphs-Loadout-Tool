@@ -5,6 +5,8 @@ def buildComponentList(dataDir):
 
     dataPath = dataDir + '\\savedata.db'
 
+    emptyCheck = True
+
     if not os.path.exists(dataDir):
         os.makedirs(dataDir)
     if not os.path.exists(dataPath):

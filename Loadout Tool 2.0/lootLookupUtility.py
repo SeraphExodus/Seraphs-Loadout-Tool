@@ -316,9 +316,11 @@ def buildTable(entry):
         rareRate = 0.65
         tableRates = [standardRate, rareRate]
     elif 'beacon' in entry:
-        standardRate = 0.34
+        pCount = int(entry[-1])
+        grpMod = int(pCount*4)
+        standardRate = 0.7-grpMod/100 
         rewardRate = 0.1
-        rareRate = 0.51
+        rareRate = ((100-(pCount**2)/15) - (80-grpMod))/100
         tableRates = [standardRate, rewardRate, rareRate]
     else:
         tableRates = [1/len(lootTables)] * len(lootTables)
@@ -510,7 +512,6 @@ def calculateBestSources(lootLookupWindow, *selection):
             standardRate = 0.7-grpMod/100 #This shit needs to be updated soon once I get some more comprehensive data on how fastKillMod is working. This is a *stopgap* estimation.
             rewardRate = 0.1
             rareRate = ((100-(pCount**2)/15) - (80-grpMod))/100
-            deadRate = 1-(standardRate + rewardRate + rareRate)
             tableRates = [standardRate, rewardRate, rareRate]
         else:
             tableRates = [1/len(subTables)] * len(subTables)
