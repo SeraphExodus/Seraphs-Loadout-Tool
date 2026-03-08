@@ -7,7 +7,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import operator
 import os
-import pyglet
 import sqlite3
 import win32clipboard
 
@@ -21,35 +20,20 @@ displayScaleFactor = ctypes.windll.shcore.GetScaleFactorForDevice(0)/100
 
 fontList = sg.Text.fonts_installed_list()
 
-if "Roboto" not in fontList:
-    pyglet.options['win32_gdi_font'] = True
-    pyglet.font.add_file(str(os.path.abspath(os.path.join(os.path.dirname(__file__), 'Fonts/Roboto-Black.ttf'))))
-    pyglet.font.add_file(str(os.path.abspath(os.path.join(os.path.dirname(__file__), 'Fonts/Roboto-BlackItalic.ttf'))))
-    pyglet.font.add_file(str(os.path.abspath(os.path.join(os.path.dirname(__file__), 'Fonts/Roboto-Bold.ttf'))))
-    pyglet.font.add_file(str(os.path.abspath(os.path.join(os.path.dirname(__file__), 'Fonts/Roboto-BoldItalic.ttf'))))
-    pyglet.font.add_file(str(os.path.abspath(os.path.join(os.path.dirname(__file__), 'Fonts/Roboto-Italic.ttf'))))
-    pyglet.font.add_file(str(os.path.abspath(os.path.join(os.path.dirname(__file__), 'Fonts/Roboto-Light.ttf'))))
-    pyglet.font.add_file(str(os.path.abspath(os.path.join(os.path.dirname(__file__), 'Fonts/Roboto-LightItalic.ttf'))))
-    pyglet.font.add_file(str(os.path.abspath(os.path.join(os.path.dirname(__file__), 'Fonts/Roboto-Medium.ttf'))))
-    pyglet.font.add_file(str(os.path.abspath(os.path.join(os.path.dirname(__file__), 'Fonts/Roboto-MediumItalic.ttf'))))
-    pyglet.font.add_file(str(os.path.abspath(os.path.join(os.path.dirname(__file__), 'Fonts/Roboto-Regular.ttf'))))
-    pyglet.font.add_file(str(os.path.abspath(os.path.join(os.path.dirname(__file__), 'Fonts/Roboto-Thin.ttf'))))
-    pyglet.font.add_file(str(os.path.abspath(os.path.join(os.path.dirname(__file__), 'Fonts/Roboto-ThinItalic.ttf'))))
-
-headerFont = ("Roboto", 12, "bold")
-summaryFont = ("Roboto", 11, "bold")
-summaryFontStats = ("Roboto", 11)
-baseFont = ("Roboto", 10, "bold")
-baseFontLite = ("Roboto", 10)
-baseFontStats = ("Roboto", 10, "bold")
-buttonFont = ("Roboto", 13, "bold")
+headerFont = ("Calibri", 12, "bold")
+summaryFont = ("Calibri", 11, "bold")
+summaryFontStats = ("Calibri", 11)
+baseFont = ("Calibri", 10, "bold")
+baseFontLite = ("Calibri", 10)
+baseFontStats = ("Calibri", 10, "bold")
+buttonFont = ("Calibri", 13, "bold")
 fontPadding = 0
 elementPadding = 4
 bgColor = '#202225'
 boxColor = '#313338'
 textColor = '#f3f4f5'
 
-fontPath = str(os.path.abspath(os.path.join(os.path.dirname(__file__)))) + '/Fonts/Roboto-Bold.ttf'
+fontPath = str(os.path.abspath(os.path.join(os.path.dirname(__file__)))) + '/Fonts/Calibri-Bold.ttf'
 fm.fontManager.addfont(fontPath)
 prop = fm.FontProperties(fname=fontPath)
 
@@ -1084,10 +1068,10 @@ def lootLookup():
     Layout = [
         [
             sg.Frame('',selectFrame,border_width=0,expand_x=True,size=(420,420)),
-            sg.Table(values=[],headings=['Level', 'Component', 'Drop Rate'],col_widths=[5, 40, 10], key='loottable',num_rows=25, auto_size_columns=False,enable_click_events=True, cols_justification=['center','left','center'], header_font=baseFont, font=('Roboto',10),),
+            sg.Table(values=[],headings=['Level', 'Component', 'Drop Rate'],col_widths=[5, 40, 10], key='loottable',num_rows=25, auto_size_columns=False,enable_click_events=True, cols_justification=['center','left','center'], header_font=baseFont, font=('Calibri',10),),
             sg.Frame('',lootGroupsFrame,border_width=0,p=elementPadding,key='lootgroupframe', size=(300,400)),
-            sg.Table(values=[],headings=['Loot Source','Odds'],col_widths=[50, 25], key='sourcestable',num_rows=25, auto_size_columns=False,enable_click_events=True, enable_events=True, cols_justification=['center','center'], header_font=baseFont, font=('Roboto',10),visible=False),
-            #sg.Table(values=[],headings=['Brand Name','Stat Odds','Drop Chance','Overall Chance'],col_widths=[40,10,10,25],key='brandtable',num_rows=25,auto_size_columns=False,cols_justification=['center','center','center','center'],header_font=baseFont, font=('Roboto',10),visible=False,hide_vertical_scroll=True),
+            sg.Table(values=[],headings=['Loot Source','Odds'],col_widths=[50, 25], key='sourcestable',num_rows=25, auto_size_columns=False,enable_click_events=True, enable_events=True, cols_justification=['center','center'], header_font=baseFont, font=('Calibri',10),visible=False),
+            #sg.Table(values=[],headings=['Brand Name','Stat Odds','Drop Chance','Overall Chance'],col_widths=[40,10,10,25],key='brandtable',num_rows=25,auto_size_columns=False,cols_justification=['center','center','center','center'],header_font=baseFont, font=('Calibri',10),visible=False,hide_vertical_scroll=True),
             sg.Frame('',brandListFrame,border_width=0,key='brandtable',visible=False),
             sg.Canvas(size=(1500,500),key='dropratechart',visible=False,background_color=bgColor)
         ]

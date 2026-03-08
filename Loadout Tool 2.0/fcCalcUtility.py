@@ -6,12 +6,12 @@ import win32clipboard
 
 from datetime import datetime, timedelta
 
-headerFont = ("Roboto", 12, "bold")
-summaryFont = ("Roboto", 11, "bold")
-summaryFontStats = ("Roboto", 11)
-baseFont = ("Roboto", 10, "bold")
-baseFontStats = ("Roboto", 10, "bold")
-buttonFont = ("Roboto", 13, "bold")
+headerFont = ("Calibri", 12, "bold")
+summaryFont = ("Calibri", 11, "bold")
+summaryFontStats = ("Calibri", 11)
+baseFont = ("Calibri", 10, "bold")
+baseFontStats = ("Calibri", 10, "bold")
+buttonFont = ("Calibri", 13, "bold")
 fontPadding = 0
 elementPadding = 4
 bgColor = '#202225'
@@ -295,7 +295,6 @@ def newFCLoadout():
             break
 
     compdb.commit()
-    compdb.close()
     newFCWindow.close()
 
     return fcName, fcLevel
@@ -319,7 +318,6 @@ def saveFCLoadout(window):
     remodalize(window)
 
     compdb.commit()
-    compdb.close()
 
 def loadFCLoadout(window):
 
@@ -482,7 +480,7 @@ def fcCalc(*dcs):
     for i in range(0,15):
 
         orderColumn.append([sg.Text("",font=baseFont,p=0,key='order'+str(i),s=2,justification='right'),sg.Checkbox('',key='checkbox'+str(i),p=(0,1),disabled=True,enable_events=True,font=baseFont)])
-        listColumn.append([sg.Combo(programNames,key='list'+str(i),font=baseFont,readonly=True,s=(42,20),disabled=True,enable_events=True),sg.Button('▲',key='moveup'+str(i),font=("Roboto",8),disabled=True,s=2,p=(1,0),border_width=0),sg.Button('▼',key='movedown'+str(i),font=("Roboto",8),disabled=True,s=2,p=(1,0),border_width=0),sg.Button('-',key='minus'+str(i),font=("Roboto",8,"bold"),disabled=True,s=2,p=(5,0),border_width=0),sg.Button('?',key='effects'+str(i),font=("Roboto",8,"bold"),disabled=True,s=2,p=(5,0),border_width=0)])
+        listColumn.append([sg.Combo(programNames,key='list'+str(i),font=baseFont,readonly=True,s=(42,20),disabled=True,enable_events=True),sg.Button('▲',key='moveup'+str(i),font=("Calibri",8),disabled=True,s=2,p=(1,0),border_width=0),sg.Button('▼',key='movedown'+str(i),font=("Calibri",8),disabled=True,s=2,p=(1,0),border_width=0),sg.Button('-',key='minus'+str(i),font=("Calibri",8,"bold"),disabled=True,s=2,p=(5,0),border_width=0),sg.Button('?',key='effects'+str(i),font=("Calibri",8,"bold"),disabled=True,s=2,p=(5,0),border_width=0)])
         memoryColumn.append([sg.Push(),sg.Text("",key='memory'+str(i),font=baseFont),sg.Push()])
         cooldownColumn.append([sg.Push(),sg.Text("",key='cooldown'+str(i),font=baseFont),sg.Push()])
 
@@ -698,7 +696,7 @@ def fcCalc(*dcs):
                 macroText += macroList[i] + '\n'
             if macroText != '':
                 toClipboard(macroText)
-                alert("",["Macro copied to clipboard!"],[],3,[[('Roboto',24,'bold')],['center']],[250, 75])
+                alert("",["Macro copied to clipboard!"],[],3,[[('Calibri',24,'bold')],['center']],[250, 75])
                 remodalize(window)
 
         if event == "Keyboard Shortcuts":

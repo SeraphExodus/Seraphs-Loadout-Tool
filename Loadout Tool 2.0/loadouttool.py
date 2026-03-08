@@ -5,7 +5,6 @@ import multiprocessing
 import multiprocessing.popen_spawn_win32 as forking
 import numpy as np
 import os
-import pyglet
 import pytesseract
 import shutil
 import sqlite3
@@ -69,21 +68,6 @@ versionURL = "https://gist.github.com/SeraphExodus/8ae0b6980e3780e8782847dbe76b0
 
 fontList = sg.Text.fonts_installed_list()
 
-if "Roboto" not in fontList:
-    pyglet.options['win32_gdi_font'] = True
-    pyglet.font.add_file(str(os.path.abspath(os.path.join(os.path.dirname(__file__), 'Fonts/Roboto-Black.ttf'))))
-    pyglet.font.add_file(str(os.path.abspath(os.path.join(os.path.dirname(__file__), 'Fonts/Roboto-BlackItalic.ttf'))))
-    pyglet.font.add_file(str(os.path.abspath(os.path.join(os.path.dirname(__file__), 'Fonts/Roboto-Bold.ttf'))))
-    pyglet.font.add_file(str(os.path.abspath(os.path.join(os.path.dirname(__file__), 'Fonts/Roboto-BoldItalic.ttf'))))
-    pyglet.font.add_file(str(os.path.abspath(os.path.join(os.path.dirname(__file__), 'Fonts/Roboto-Italic.ttf'))))
-    pyglet.font.add_file(str(os.path.abspath(os.path.join(os.path.dirname(__file__), 'Fonts/Roboto-Light.ttf'))))
-    pyglet.font.add_file(str(os.path.abspath(os.path.join(os.path.dirname(__file__), 'Fonts/Roboto-LightItalic.ttf'))))
-    pyglet.font.add_file(str(os.path.abspath(os.path.join(os.path.dirname(__file__), 'Fonts/Roboto-Medium.ttf'))))
-    pyglet.font.add_file(str(os.path.abspath(os.path.join(os.path.dirname(__file__), 'Fonts/Roboto-MediumItalic.ttf'))))
-    pyglet.font.add_file(str(os.path.abspath(os.path.join(os.path.dirname(__file__), 'Fonts/Roboto-Regular.ttf'))))
-    pyglet.font.add_file(str(os.path.abspath(os.path.join(os.path.dirname(__file__), 'Fonts/Roboto-Thin.ttf'))))
-    pyglet.font.add_file(str(os.path.abspath(os.path.join(os.path.dirname(__file__), 'Fonts/Roboto-ThinItalic.ttf'))))
-
 displayScaleFactor = ctypes.windll.shcore.GetScaleFactorForDevice(0)/100
 
 scaleFactor = 1
@@ -93,12 +77,12 @@ if scaleFactor == 1:
 else:
     fontFace = ''
 
-headerFont = ("Roboto", int(12*scaleFactor), fontFace)
-summaryFont = ("Roboto", int(11*scaleFactor), fontFace)
-summaryFontStats = ("Roboto", int(11*scaleFactor))
-baseFont = ("Roboto", int(10*scaleFactor), fontFace)
-baseFontStats = ("Roboto", int(10*scaleFactor), fontFace)
-buttonFont = ("Roboto", int(13*scaleFactor), fontFace)
+headerFont = ("Calibri", int(12*scaleFactor), fontFace)
+summaryFont = ("Calibri", int(11*scaleFactor), fontFace)
+summaryFontStats = ("Calibri", int(11*scaleFactor))
+baseFont = ("Calibri", int(10*scaleFactor), fontFace)
+baseFontStats = ("Calibri", int(10*scaleFactor), fontFace)
+buttonFont = ("Calibri", int(13*scaleFactor), fontFace)
 fontPadding = 0
 elementPadding = int(4*scaleFactor)
 bgColor = '#202225'
@@ -291,6 +275,22 @@ cur = tables.cursor()
 
 compdb = sqlite3.connect('file:'+ dataDir +'\\savedata.db?mode=rw', uri=True)
 cur2 = compdb.cursor()
+
+
+
+###This is a code snippet I executed for Karnov on 7 Mar 2026 to repair his savedata after component names with single apostrophes were written into the loadout list with doubled-up apostrophes, causing a crash when attempting to load them
+
+# loadouts = [list(x) for x in cur2.execute("SELECT * from loadout").fetchall()]
+# for x in range(len(loadouts)):
+#     for y in range(len(loadouts[x])):
+#         if type(loadouts[x][y]) == str:
+#             loadouts[x][y] = loadouts[x][y].replace("''","'")
+#     cur2.execute("INSERT OR REPLACE INTO loadout VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", loadouts[x])
+
+# compdb.commit()
+# compdb.close()
+
+
 
 ##Import utilities at this point once we've got the db paths confirmed
 #Yes, I know this is some sort of crime against python but sue me.
@@ -809,20 +809,20 @@ def updateDrainStrings(window):
         if not poweredComponents[i] == "None" and not poweredComponents[i] == "":
             currentDrain = drains[i]
             if reactorDecrement <= 0:
-                window[boxKeys[i]].update(background_color='#dd0000',text_color="#000000", font=("Roboto", 10))
+                window[boxKeys[i]].update(background_color='#dd0000',text_color="#000000", font=("Calibri", 10))
                 window[frameKeys[i]].Widget.config(background='#dd0000')
             elif currentDrain > reactorDecrement:
                 if reactorDecrement < 0.1 * currentDrain:
-                    window[boxKeys[i]].update(background_color='#dd0000',text_color="#000000", font=("Roboto", 10))
+                    window[boxKeys[i]].update(background_color='#dd0000',text_color="#000000", font=("Calibri", 10))
                     window[frameKeys[i]].Widget.config(background='#dd0000')
                 elif i == cmIndex + 5 and cmIndex != 0 and reactorDecrement >= 0.1 * currentDrain:
-                    window[boxKeys[i]].update(background_color='#00cc00',text_color="#000000", font=("Roboto", 10))
+                    window[boxKeys[i]].update(background_color='#00cc00',text_color="#000000", font=("Calibri", 10))
                     window[frameKeys[i]].Widget.config(background='#00cc00')
                 else:
-                    window[boxKeys[i]].update(background_color='#ffcc00',text_color="#000000", font=("Roboto", 10))
+                    window[boxKeys[i]].update(background_color='#ffcc00',text_color="#000000", font=("Calibri", 10))
                     window[frameKeys[i]].Widget.config(background='#ffcc00')
             else:
-                window[boxKeys[i]].update(background_color='#00cc00',text_color="#000000", font=("Roboto", 10))
+                window[boxKeys[i]].update(background_color='#00cc00',text_color="#000000", font=("Calibri", 10))
                 window[frameKeys[i]].Widget.config(background='#00cc00')
 
             if i == cmIndex + 5 and cmIndex != 0:
@@ -2080,9 +2080,6 @@ def duplicateLoadout(selection):
             remainingSlots = [0,1,2,3,4,5,6,7]
             remainingSources = [0,1,2,3,4,5,6,7]
 
-            print(slotCompList)
-            print(slotCompatibility)
-
             for k in compOrder:
                 for j in remainingSources:
                     if j != '':
@@ -2097,7 +2094,6 @@ def duplicateLoadout(selection):
                                     slotCompList[j+8] = ''
                                     break
             
-            print(slotCompList)
             droppedCompFlag = False
             if any([x != '' for x in slotCompList]):
                 droppedCompFlag = True
@@ -2500,7 +2496,7 @@ def createComponent(componentName, *editArgs):
         inputColumn.insert(0,[sg.Text(editingName,font=baseFont),sg.Push()])
 
     tessLines = [
-        [sg.Push(),sg.Text('Tesseract OCR is Enabled   ',font=baseFont,p=0),sg.Button(' ? ',font=("Roboto",10,"bold"),p=0),sg.Push()],
+        [sg.Push(),sg.Text('Tesseract OCR is Enabled   ',font=baseFont,p=0),sg.Button(' ? ',font=("Calibri",10,"bold"),p=0),sg.Push()],
         [sg.Text('',font=baseFont,p=0)],
         [sg.Push(),sg.Text('Use the Windows Snipping Tool (Win+Shift+S) to capture your',font=baseFont,p=0),sg.Push()],
         [sg.Push(),sg.Text('component stats, and Ctrl-V to paste them into this window.',font=baseFont,p=0),sg.Push(),],
@@ -2829,6 +2825,16 @@ def createComponent(componentName, *editArgs):
             except:
                 pass
             break
+
+    ###Correct stupid quote escaping issues in loadout component names so editing into them doesn't fuck up every loadout that component's attached to.
+
+    loadouts = [list(x) for x in cur2.execute("SELECT * from loadout").fetchall()]
+    for x in range(len(loadouts)):
+        for y in range(len(loadouts[x])):
+            if type(loadouts[x][y]) == str:
+                loadouts[x][y] = loadouts[x][y].replace("''","'")
+                loadouts[x][y] = loadouts[x][y].replace('""','"')
+        cur2.execute("INSERT OR REPLACE INTO loadout VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", loadouts[x])
 
     compdb.commit()
     addComponentWindow.close()
@@ -4437,10 +4443,12 @@ def main():
 
             if event == 'Save Loadout':
                 saveLoadout(window)
+                delta = True
 
             if event == 'Save Loadout As':
                 newName = saveLoadoutAs(window)
                 window['loadoutname'].update(newName)
+                delta = True
 
             if event == 'Open Loadout':
                 [newChassis, newChassisMass, loaded] = loadLoadout(window)
@@ -4671,7 +4679,6 @@ def main():
                     values['weaponoverloadlevel'], 
                     values['shieldadjustsetting']
                     ]
-
                 savedLoadouts = cur2.execute('SELECT * FROM loadout').fetchall()
                 if savedLoadouts != []:
                     menuEnables[0] = True

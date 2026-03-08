@@ -11,33 +11,16 @@ from io import BytesIO
 from PIL import ImageGrab
 from win32gui import FindWindow, GetWindowRect
 
-import pyglet
-
 displayScaleFactor = ctypes.windll.shcore.GetScaleFactorForDevice(0)/100
 
 fontList = sg.Text.fonts_installed_list()
 
-if "Roboto" not in fontList:
-    pyglet.options['win32_gdi_font'] = True
-    pyglet.font.add_file(str(os.path.abspath(os.path.join(os.path.dirname(__file__), 'Fonts/Roboto-Black.ttf'))))
-    pyglet.font.add_file(str(os.path.abspath(os.path.join(os.path.dirname(__file__), 'Fonts/Roboto-BlackItalic.ttf'))))
-    pyglet.font.add_file(str(os.path.abspath(os.path.join(os.path.dirname(__file__), 'Fonts/Roboto-Bold.ttf'))))
-    pyglet.font.add_file(str(os.path.abspath(os.path.join(os.path.dirname(__file__), 'Fonts/Roboto-BoldItalic.ttf'))))
-    pyglet.font.add_file(str(os.path.abspath(os.path.join(os.path.dirname(__file__), 'Fonts/Roboto-Italic.ttf'))))
-    pyglet.font.add_file(str(os.path.abspath(os.path.join(os.path.dirname(__file__), 'Fonts/Roboto-Light.ttf'))))
-    pyglet.font.add_file(str(os.path.abspath(os.path.join(os.path.dirname(__file__), 'Fonts/Roboto-LightItalic.ttf'))))
-    pyglet.font.add_file(str(os.path.abspath(os.path.join(os.path.dirname(__file__), 'Fonts/Roboto-Medium.ttf'))))
-    pyglet.font.add_file(str(os.path.abspath(os.path.join(os.path.dirname(__file__), 'Fonts/Roboto-MediumItalic.ttf'))))
-    pyglet.font.add_file(str(os.path.abspath(os.path.join(os.path.dirname(__file__), 'Fonts/Roboto-Regular.ttf'))))
-    pyglet.font.add_file(str(os.path.abspath(os.path.join(os.path.dirname(__file__), 'Fonts/Roboto-Thin.ttf'))))
-    pyglet.font.add_file(str(os.path.abspath(os.path.join(os.path.dirname(__file__), 'Fonts/Roboto-ThinItalic.ttf'))))
-
-headerFont = ("Roboto", 12, "bold")
-summaryFont = ("Roboto", 11, "bold")
-summaryFontStats = ("Roboto", 11)
-baseFont = ("Roboto", 10, "bold")
-baseFontStats = ("Roboto", 10, "bold")
-buttonFont = ("Roboto", 13, "bold")
+headerFont = ("Calibri", 12, "bold")
+summaryFont = ("Calibri", 11, "bold")
+summaryFontStats = ("Calibri", 11)
+baseFont = ("Calibri", 10, "bold")
+baseFontStats = ("Calibri", 10, "bold")
+buttonFont = ("Calibri", 13, "bold")
 fontPadding = 0
 elementPadding = 4
 bgColor = '#202225'
@@ -1435,10 +1418,10 @@ def brandTable(reCalcWindow, newWindow, *brandWindow):
             newCol.append([sg.Push(),sg.Text(rarityList1inx[i],font=baseFont,p=0,key='1inx' + str(i)),sg.Push()])
             newCol.append([sg.Push(),sg.Text(logDelta[i],font=baseFont,p=0,key='logdelta' + str(i)),sg.Push()])
         else:
-            newCol.append([sg.Push(),sg.Text(reCalcWindow['matchoutput' + str(i)].get(),font=('Roboto',10,'italic'),p=0,key='raw' + str(i)),sg.Push()])
-            newCol.append([sg.Push(),sg.Text(reCalcWindow['matchpost' + str(i)].get(),font=('Roboto',10,'italic'),p=0,key='output' + str(i)),sg.Push()])
-            newCol.append([sg.Push(),sg.Text(targetRarity,font=('Roboto',10,'italic'),p=0,key='1inx' + str(i)),sg.Push()])
-            newCol.append([sg.Push(),sg.Text('-',font=('Roboto',10,'italic'),p=0,key='logdelta' + str(i)),sg.Push()])
+            newCol.append([sg.Push(),sg.Text(reCalcWindow['matchoutput' + str(i)].get(),font=('Calibri',10,'italic'),p=0,key='raw' + str(i)),sg.Push()])
+            newCol.append([sg.Push(),sg.Text(reCalcWindow['matchpost' + str(i)].get(),font=('Calibri',10,'italic'),p=0,key='output' + str(i)),sg.Push()])
+            newCol.append([sg.Push(),sg.Text(targetRarity,font=('Calibri',10,'italic'),p=0,key='1inx' + str(i)),sg.Push()])
+            newCol.append([sg.Push(),sg.Text('-',font=('Calibri',10,'italic'),p=0,key='logdelta' + str(i)),sg.Push()])
         newCol.append([sg.Text('',font=summaryFont,p=0)])
         newCol.append([sg.Push(),sg.Text(stats[i],font=summaryFont,p=0),sg.Push()])
         for j in range(0,len(brandNames)):
@@ -1459,10 +1442,10 @@ def brandTable(reCalcWindow, newWindow, *brandWindow):
                     brandWindow['1inx' + str(i)].update(rarityList1inx[i],font=baseFont)
                     brandWindow['logdelta' + str(i)].update(logDelta[i],font=baseFont)
                 else:
-                    brandWindow['raw' + str(i)].update(reCalcWindow['matchoutput' + str(i)].get(),font=('Roboto',10,'italic'))
-                    brandWindow['output' + str(i)].update(reCalcWindow['matchpost' + str(i)].get(),font=('Roboto',10,'italic'))
-                    brandWindow['1inx' + str(i)].update(targetRarity,font=('Roboto',10,'italic'))
-                    brandWindow['logdelta' + str(i)].update('-',font=('Roboto',10,'italic'))
+                    brandWindow['raw' + str(i)].update(reCalcWindow['matchoutput' + str(i)].get(),font=('Calibri',10,'italic'))
+                    brandWindow['output' + str(i)].update(reCalcWindow['matchpost' + str(i)].get(),font=('Calibri',10,'italic'))
+                    brandWindow['1inx' + str(i)].update(targetRarity,font=('Calibri',10,'italic'))
+                    brandWindow['logdelta' + str(i)].update('-',font=('Calibri',10,'italic'))
                 for j in range(0,len(brandNames)):
                     brandWindow['table' + str(i) + '/' + str(j)].update(rarityTable[i][j],text_color=rarityColors[i][j])
             return brandWindow
@@ -2387,7 +2370,7 @@ def reCalc():
     IOFrame = [
         [sg.Push(),sg.Frame('',selectFrame,border_width=0,p=elementPadding,s=(325,100),element_justification='center'),sg.Push()],
         [sg.VPush()],
-        [sg.Push(),sg.Frame('',inputFrame,border_width=0,p=0,s=(285,250),element_justification='center'),sg.Frame('',[[sg.Button("⮂",font=("Roboto",18,"bold"),visible=False,s=(20,20))]],border_width=0,p=0,s=(50,50)),sg.Frame('',outputFrame,border_width=0,p=0,s=(200,250),element_justification='center'),sg.Frame('',matchAnalysisFrame,border_width=0,p=0,s=(250,250),element_justification='center'),sg.Push()]
+        [sg.Push(),sg.Frame('',inputFrame,border_width=0,p=0,s=(285,250),element_justification='center'),sg.Frame('',[[sg.Button("⮂",font=("Calibri",18,"bold"),visible=False,s=(20,20))]],border_width=0,p=0,s=(50,50)),sg.Frame('',outputFrame,border_width=0,p=0,s=(200,250),element_justification='center'),sg.Frame('',matchAnalysisFrame,border_width=0,p=0,s=(250,250),element_justification='center'),sg.Push()]
     ]
 
     matchingFrame = [
