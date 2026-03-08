@@ -33,10 +33,6 @@ bgColor = '#202225'
 boxColor = '#313338'
 textColor = '#f3f4f5'
 
-fontPath = str(os.path.abspath(os.path.join(os.path.dirname(__file__)))) + '/Fonts/Calibri-Bold.ttf'
-fm.fontManager.addfont(fontPath)
-prop = fm.FontProperties(fname=fontPath)
-
 mpl.rcParams['figure.facecolor'] = boxColor
 mpl.rcParams['axes.facecolor'] = bgColor
 mpl.rcParams['axes.labelcolor'] = '#ffffff'
@@ -46,7 +42,7 @@ mpl.rcParams['axes.xmargin'] = 0
 mpl.rcParams['xtick.labelcolor'] = '#ffffff'
 mpl.rcParams['ytick.labelcolor'] = '#ffffff'
 mpl.rcParams['font.family'] = 'sans-serif'
-mpl.rcParams['font.sans-serif'] = prop.get_name()
+mpl.rcParams['font.sans-serif'] = 'Calibri'
 
 theme_definition = {'BACKGROUND': boxColor,
                     'TEXT': textColor,
