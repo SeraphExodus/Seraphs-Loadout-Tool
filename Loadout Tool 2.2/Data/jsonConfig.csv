@@ -1,0 +1,10 @@
+brandslist.csv,6,path,name,relevel,weight,statmeans,statmods,1,1,1,1,9,9,s,s,s,i,f,f,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+chassis.csv,7,name,maxmass,weaponslots,pyrad,speedmods,profile,slide,1,1,8,5,2,3,1,s,i,s,i,f,f,f,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+complib.csv,3,name,type,compstats,1,1,8,s,s,f,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+componentstats.csv,4,comptype,stat,tail,statdisp,1,8,8,8,s,s,i,s,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+fcprograms.csv,5,command,name,datasize,modifiers,effectdisp,1,1,1,8,2,s,s,i,f,s,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+ordnance.csv,3,name,pvemod,vsx,1,1,2,s,f,f,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+lootgroups.csv,2,groupname,grouptables,1,6,s,s,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+loottables.csv,2,tablename,entries,1,237,s,s,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+shiptable.csv,6,unid,name,dropcount,droprate,lootgroup,shiptype,1,1,1,1,1,1,s,s,i,f,s,s,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+shiptypes.csv,22,shiptype,chassisstats,reactorstats,enginestats,shield0stats,shield1stats,armor0stats,armor1stats,capstats,booststats,distats,bridgestats,hangarstats,targstats,w0stats,w1stats,w2stats,w3stats,w4stats,w5stats,w6stats,w7stats,1,7,2,6,5,5,1,1,2,3,2,2,2,2,8,8,8,8,8,8,8,8,s,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f
