@@ -363,18 +363,23 @@ def bestCaseWorstCaseVsRefire(x,tail,reMult,means,stdevs,mixtureWeights):
     bestPost = round(bestCasePreRounded * reMult,2)
     worstPost = round(worstCasePreRounded * reMult,2)
 
-    if worstPost != bestPost:
+    bestRarity = getRarity(x+add,means,stdevs,mixtureWeights)
+    midRarity = getRarity(x,means,stdevs,mixtureWeights)
+    worstRarity = getRarity(x-subtract,means,stdevs,mixtureWeights)
+
+    span = bestRarity-worstRarity
+
+    if span == 0:
+        posts = ['','']
+        percents = ['','']
+    elif worstPost == bestPost:
+        posts = [bestPost, bestPost]
+        percents = [float(100), float(100)]
+    else:
         posts = [worstPost, bestPost]
-        bestRarity = getRarity(x+add,means,stdevs,mixtureWeights)
-        midRarity = getRarity(x,means,stdevs,mixtureWeights)
-        worstRarity = getRarity(x-subtract,means,stdevs,mixtureWeights)
-        span = bestRarity-worstRarity
         percentLow = (midRarity-worstRarity)/span * 100
         percentHigh = (bestRarity-midRarity)/span * 100
         percents = [percentLow, percentHigh]
-    else:
-        posts = [bestPost, bestPost]
-        percents = [float(100), float(100)]
 
     return bestPost, worstPost, posts, percents
 

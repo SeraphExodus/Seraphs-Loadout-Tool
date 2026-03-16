@@ -1,33 +1,15 @@
 import FreeSimpleGUI as sg
 import numpy as np
 import os
-import pyglet
 import sqlite3
 
 from pandas import read_excel
 
-fontList = sg.Text.fonts_installed_list()
-
-if "Roboto" not in fontList:
-    pyglet.options['win32_gdi_font'] = True
-    pyglet.font.add_file(str(os.path.abspath(os.path.join(os.path.dirname(__file__), 'Fonts/Roboto-Black.ttf'))))
-    pyglet.font.add_file(str(os.path.abspath(os.path.join(os.path.dirname(__file__), 'Fonts/Roboto-BlackItalic.ttf'))))
-    pyglet.font.add_file(str(os.path.abspath(os.path.join(os.path.dirname(__file__), 'Fonts/Roboto-Bold.ttf'))))
-    pyglet.font.add_file(str(os.path.abspath(os.path.join(os.path.dirname(__file__), 'Fonts/Roboto-BoldItalic.ttf'))))
-    pyglet.font.add_file(str(os.path.abspath(os.path.join(os.path.dirname(__file__), 'Fonts/Roboto-Italic.ttf'))))
-    pyglet.font.add_file(str(os.path.abspath(os.path.join(os.path.dirname(__file__), 'Fonts/Roboto-Light.ttf'))))
-    pyglet.font.add_file(str(os.path.abspath(os.path.join(os.path.dirname(__file__), 'Fonts/Roboto-LightItalic.ttf'))))
-    pyglet.font.add_file(str(os.path.abspath(os.path.join(os.path.dirname(__file__), 'Fonts/Roboto-Medium.ttf'))))
-    pyglet.font.add_file(str(os.path.abspath(os.path.join(os.path.dirname(__file__), 'Fonts/Roboto-MediumItalic.ttf'))))
-    pyglet.font.add_file(str(os.path.abspath(os.path.join(os.path.dirname(__file__), 'Fonts/Roboto-Regular.ttf'))))
-    pyglet.font.add_file(str(os.path.abspath(os.path.join(os.path.dirname(__file__), 'Fonts/Roboto-Thin.ttf'))))
-    pyglet.font.add_file(str(os.path.abspath(os.path.join(os.path.dirname(__file__), 'Fonts/Roboto-ThinItalic.ttf'))))
-
-headerFont = ("Roboto", 12, "bold")
-summaryFont = ("Roboto", 11, "bold")
-baseFont = ("Roboto", 10, "bold")
-baseFontStats = ("Roboto", 10, "bold")
-buttonFont = ("Roboto", 12, "bold")
+headerFont = ("Calibri", 12, "bold")
+summaryFont = ("Calibri", 11, "bold")
+baseFont = ("Calibri", 10, "bold")
+baseFontStats = ("Calibri", 10, "bold")
+buttonFont = ("Calibri", 12, "bold")
 fontPadding = 0
 elementPadding = 4
 bgColor = '#202225'
