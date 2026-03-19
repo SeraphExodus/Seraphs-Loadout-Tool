@@ -4,7 +4,7 @@ Capacitor,Reactor Energy Drain,Mass,Capacitor Energy,Recharge Rate,,,,,-1,-1,1,1
 Cargo Hold,Mass,,,,,,,,,,,,,,,,Mass:,,,,,,,
 Countermeasure Launcher,Reactor Energy Drain,Mass,,,,,,,,,,,,,,,Drain:,Mass:,,,,,,
 Countermeasure Pack,Ammunition,,,,,,,,,,,,,,,,Ammo:,,,,,,,
-Droid Interface,Reactor Energy Drain,Mass,Droid Command Speed,,,,,,-1,-1,-1,,,,,,Drain:,Mass:,Command Speed:,,,,,
+Droid Interface,Reactor Energy Drain,Mass,Droid Command Speed,,,,,,-1,-1,-1,,,,,,Drain:,Mass:,Cmd. Speed:,,,,,
 Engine,Reactor Energy Drain,Mass,Pitch Rate Maximum,Yaw Rate Maximum,Roll Rate Maximum,Engine Top Speed,,,-1,-1,1,1,1,1,,,Drain:,Mass:,Pitch Rate:,Yaw Rate:,Roll Rate:,Top Speed:,,
 Ordnance Launcher,Reactor Energy Drain,Mass,Type,,,,,,,,,,,,,,Drain:,Mass:,Type:,,,,,
 Ordnance Pack,Minimum Damage,Maximum Damage,Ammunition,Type,,,,,,,,,,,,,Min Damage:,Max Damage:,Ammo:,Type:,,,,

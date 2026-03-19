@@ -1,7 +1,6 @@
 import ctypes
 import FreeSimpleGUI as sg
 import jellyfish
-import loadouttoolmethods as slt
 import multiprocessing
 import multiprocessing.popen_spawn_win32 as forking
 import json
@@ -15,10 +14,11 @@ import win32clipboard
 
 from datetime import datetime, timedelta
 from io import BytesIO
+from loadouttoolmethods import *
 from PIL import Image, ImageGrab, ImageStat
 from requests import get
 from webbrowser import open as browserOpen
-from win32gui import FindWindow, GetWindowRect
+from win32gui import FindWindow, GetWindowRect, GetClientRect
 
 currentVersion = '2.20.0'
 
@@ -38,17 +38,6 @@ saveDir = os.getenv("APPDATA") + "\\Seraph's Loadout Tool\\"
 with open(os.path.abspath(saveDir + 'savedata.json')) as jsonSavedata:
     savedata = json.load(jsonSavedata)
 
-window_concise = [1024,768]
-window_verbose = [1440,1080]
-
-headerFont = ("Calibri", int(12), 'bold')
-summaryFont = ("Calibri", int(11), 'bold')
-summaryFontStats = ("Calibri", int(11))
-baseFont = ("Calibri", int(10), 'bold')
-baseFontStats = ("Calibri", int(10), 'bold')
-buttonFont = ("Calibri", int(13), 'bold')
-fontPadding = 0
-elementPadding = 4
 bgColor = '#202225'
 boxColor = '#313338'
 textColor = '#f3f4f5'
@@ -68,22 +57,49 @@ sg.theme_add_new('Discord_Dark', theme_definition)
 
 sg.theme('Discord_Dark')
 
-def main():
-    unids = ['reactor','engine','booster','capacitor','shield','frontarmor','reararmor','droidinterface','cargohold','slot0','slot1','slot2','slot3','slot4','slot5','slot6','slot7']
-    compBox1 = slt.constructComponentBox(True,2,'slot0',(200,225))
-    Layout = [
-        [compBox1],
-        ]
-    loadoutTool = sg.Window("Seraph's Loadout Tool V" + currentVersion,Layout, finalize=True, background_color=bgColor, icon=os.path.abspath(os.path.join(os.path.dirname(__file__), 'SLT_Icon.ico')), margins=(elementPadding, elementPadding), enable_close_attempted_event=True)
+unids = [
+    'reactor',
+    'engine',
+    'booster',
+    'capacitor',
+    'shield',
+    'frontarmor',
+    'reararmor',
+    'droidinterface',
+    'cargohold',
+    'slot0',
+    'slot1',
+    'slot2',
+    'slot3',
+    'slot4',
+    'slot5',
+    'slot6',
+    'slot7'
+    ]
 
-    slt.updateComponentBox(loadoutTool,'slot0',1,'None')
-    loadoutTool.refresh()
+def main():
+
+    global unids
+
+    menuEnables = [False, False, False]
+
+    menu_def = setMenus(menuEnables)
+
+    windowSize = 'small' #edit later so that the size choice is retained as part of savedata.
+
+    loadoutTool = buildWindow(currentVersion, windowSize, menu_def)
+
+    applyBindings(loadoutTool)
+
+    move_center(loadoutTool)
+
+    for unid in unids:
+        updateComponentBox(loadoutTool,unid,1,'None')
 
     while True:
         window, event, values = sg.read_all_windows()
-        print(window, event, values)
 
-        if event == sg.WIN_CLOSE_ATTEMPTED_EVENT or sg.WIN_CLOSED:
+        if event == sg.WIN_CLOSE_ATTEMPTED_EVENT or sg.WIN_CLOSED or event == None:
             break
 
         if 'dropdown' in event:
@@ -91,10 +107,22 @@ def main():
             dropdown = int(event.split('dropdown')[1])
             selection = values[event]
             if dropdown == 1:
-                slt.updateComponentBox(loadoutTool,unid,dropdown,selection)
+                updateComponentBox(loadoutTool,unid,dropdown,selection)
             elif dropdown == 2:
-                launcher = values[unid[:-1] + '1']
-                slt.updateComponentBox(loadoutTool,unid,dropdown,selection,launcher)
+                launcher = values[unid + 'dropdown1']
+                updateComponentBox(loadoutTool,unid,dropdown,selection,launcher)
+        
+        if event == 'test':
+            name, chassis, mass = loadLoadout(window, fetchSavedata('exitsave')[0])
+
+        if event == 'Change Window Scale':
+            if windowSize == 'small':
+                windowSize = 'large'
+            else:
+                windowSize = 'small'
+            loadoutTool.close()
+            loadoutTool = buildWindow(currentVersion,windowSize,menu_def)
+            applyBindings(loadoutTool)
     
     loadoutTool.close()
 
