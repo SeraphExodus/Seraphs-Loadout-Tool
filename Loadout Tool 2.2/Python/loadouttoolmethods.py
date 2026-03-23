@@ -247,21 +247,26 @@ def constructFCProgramSelector(size, textScale):
     baseFont = ("Calibri", textScale, 'bold')
 
     programLevels = ['None',1,2,3,4]
-    adjustLevels = ['Front - Extreme','Front - Heavy','Front - Moderate','Front - Light','None','Rear - Light','Rear - Moderate','Rear - Heavy','Rear - Extreme']
+    if textScale == 10:
+        adjustLevels = ['Front - Extreme','Front - Heavy','Front - Moderate','Front - Light','None','Rear - Light','Rear - Moderate','Rear - Heavy','Rear - Extreme']
+        adjustComboWidth = 16
+    else:
+        adjustLevels = ['Front - Ex','Front - Hvy','Front - Mod','Front - Lt','None','Rear - Lt','Rear - Mod','Rear - Hvy','Rear - Ex']
+        adjustComboWidth = 9
 
     textColumn = [
         [sg.Push(),sg.Text('Reactor Overload:',font=baseFont,p=1)],
         [sg.Push(),sg.Text('Engine Overload:',font=baseFont,p=1)],
-        [sg.Push(),sg.Text('Capacitor Overload:',font=baseFont,p=1)],
+        [sg.Push(),sg.Text('Capacitor Overcharge:',font=baseFont,p=1)],
         [sg.Push(),sg.Text('Weapon Overload:',font=baseFont,p=1)],
         [sg.Text('',font=baseFont,p=0)],
     ]
 
     selectColumn = [
         [sg.Combo(values=programLevels,default_value=4,size=(4,5),key='reactoroverloadlevel',font=baseFont,p=1,readonly=True,enable_events=True),sg.Push()],
-        [sg.Combo(values=programLevels,default_value=4,size=(4,5),key='reactoroverloadlevel',font=baseFont,p=1,readonly=True,enable_events=True),sg.Push()],
-        [sg.Combo(values=programLevels,default_value=4,size=(4,5),key='reactoroverloadlevel',font=baseFont,p=1,readonly=True,enable_events=True),sg.Push()],
-        [sg.Combo(values=programLevels,default_value=4,size=(4,5),key='reactoroverloadlevel',font=baseFont,p=1,readonly=True,enable_events=True),sg.Push()],
+        [sg.Combo(values=programLevels,default_value=4,size=(4,5),key='engineoverloadlevel',font=baseFont,p=1,readonly=True,enable_events=True),sg.Push()],
+        [sg.Combo(values=programLevels,default_value=4,size=(4,5),key='capacitoroverloadlevel',font=baseFont,p=1,readonly=True,enable_events=True),sg.Push()],
+        [sg.Combo(values=programLevels,default_value=4,size=(4,5),key='weaponoverloadlevel',font=baseFont,p=1,readonly=True,enable_events=True),sg.Push()],
         [sg.Text('',font=baseFont,p=0)],
     ]
 
@@ -272,7 +277,7 @@ def constructFCProgramSelector(size, textScale):
         [sg.Push(),sg.Text('FC Program Settings',font=headerFont,p=0),sg.Push()],
         [sg.VPush()],
         [sg.Frame('',textColumn,border_width=0,p=0,size=(leftWidth,size[1]/2)),sg.Frame('',selectColumn,border_width=0,p=0,size=(rightWidth,size[1]/2))],
-        [sg.Frame('',[[sg.Push(),sg.Text('Shield Adjust:',font=baseFont,p=1),sg.Combo(values=adjustLevels,default_value='None',size=(14,9),key='shieldadjustlevel',font=baseFont,p=1,readonly=True,enable_events=True),sg.Push()]],border_width=0,p=0)],
+        [sg.Frame('',[[sg.Push(),sg.Text('Shield Adjust:',font=baseFont,p=1),sg.Combo(values=adjustLevels,default_value='None',size=(adjustComboWidth,9),key='shieldadjustlevel',font=baseFont,p=1,readonly=True,enable_events=True),sg.Push()]],border_width=0,p=0)],
         [sg.VPush()]
     ]
 
@@ -467,6 +472,19 @@ def updateComponentBox(window,unid,dropdown,component,*launcher):
     while len(dispStats) < 8:
         dispStats += ['']
 
+    if unid == 'shield' and component != 'None': #apply shield adjust
+        adjust = window['shieldadjustlevel'].get()
+        if adjust != 'None':
+            side = adjust.split(' ')[0]
+            level = adjust.split(' ')[2]
+            programData = [x for x in tables['fcprograms'] if all(['Adjust' in x['name'], side in x['name'], level in x['name']])][0]
+            dispStats[5:8] = ['Adjust:', 'Front HP:', 'Back HP:']
+            compStats[5:8] = [programData['name'].split(' ')[1] + ' - ' + programData['name'].split(' ')[4], compStats[2] * programData['modifiers'][7], compStats[2] * (2 - programData['modifiers'][7])]
+        else:
+            dispStats[4:9] = [''] * 4
+            compStats[4:9] = [''] * 4
+            
+
     for i in range(len(dispStats)): #note: will have to update later to add lines to shield for adjust in line with current implementation but obv can't do that until fc settings are re-implemented.
         if compStats[i] != '':
             if dispStats[i] in ['Vs. Shields:','Vs. Armor:','Refire Rate:']:
@@ -580,37 +598,38 @@ def buildWindow(currentVersion, scale, menu_def):
         textScale = 8
         boxWidth = 161
         boxHeight = 213
+        boxHeightShort = 153
 
-        summaryBoxSize = (3*boxWidth + 4*elementPadding, boxHeight)
+        summaryBoxSize = (2*boxWidth + 2*elementPadding, boxHeightShort)
         largeBoxSize = (boxWidth, boxHeight)
-        smallBoxSizeA = (boxWidth, boxHeight/2+13)
+        smallBoxSizeA = (boxWidth, boxHeightShort)
         smallBoxSizeB = (boxWidth, boxHeight/2-4)
-        smallBoxSizeC = (boxWidth, boxHeight/2-19)
+        smallBoxSizeC = (boxWidth, boxHeight-boxHeightShort/2-4)
+        smallBoxSizeD = (boxWidth, boxHeightShort/2-4)
 
         leftFrame = [
-            [constructLoadoutSummary(summaryBoxSize,textScale)],
+            [constructLoadoutSummary(summaryBoxSize,textScale),constructComponentBox('reactor',smallBoxSizeA,False,1,textScale)],
             [constructComponentBox('engine',largeBoxSize,True,1,textScale),constructComponentBox('booster',largeBoxSize,True,1,textScale),constructComponentBox('slot0',largeBoxSize,True,2,textScale)],
-            [constructComponentBox('shield',largeBoxSize,True,1,textScale),sg.Frame('',[[constructComponentBox('frontarmor',smallBoxSizeB,False,1,textScale)],[constructComponentBox('reararmor',smallBoxSizeB,False,1,textScale)]],border_width=0,p=0,background_color=bgColor),constructComponentBox('slot4',largeBoxSize,True,2,textScale)]
+            [sg.Frame('',[[constructComponentBox('shield',smallBoxSizeC,True,1,textScale)],[constructComponentBox('cargohold',smallBoxSizeD,False,1,textScale)]],border_width=0,p=0,background_color=bgColor),
+             sg.Frame('',[[constructComponentBox('frontarmor',smallBoxSizeB,False,1,textScale)],[constructComponentBox('reararmor',smallBoxSizeB,False,1,textScale)]],border_width=0,p=0,background_color=bgColor),constructComponentBox('slot4',largeBoxSize,True,2,textScale)]
         ]
     
         rightFrame = [
-            [constructFCProgramSelector(largeBoxSize,textScale),
-            sg.Frame('',[[constructComponentBox('reactor',smallBoxSizeC,False,1,textScale)],[constructComponentBox('droidinterface',smallBoxSizeA,True,1,textScale)]],border_width=0,p=0,background_color=bgColor),
-            sg.Frame('',[[constructComponentBox('cargohold',smallBoxSizeC,False,1,textScale)],[constructComponentBox('capacitor',smallBoxSizeA,True,1,textScale)]],border_width=0,p=0,background_color=bgColor)],
+            [constructComponentBox('capacitor',smallBoxSizeA,True,1,textScale),constructComponentBox('droidinterface',smallBoxSizeA,True,1,textScale),constructFCProgramSelector(smallBoxSizeA,textScale)],
             [constructComponentBox('slot1',largeBoxSize,True,2,textScale),constructComponentBox('slot2',largeBoxSize,True,2,textScale),constructComponentBox('slot3',largeBoxSize,True,2,textScale)],
             [constructComponentBox('slot5',largeBoxSize,True,2,textScale),constructComponentBox('slot6',largeBoxSize,True,2,textScale),constructComponentBox('slot7',largeBoxSize,True,2,textScale)]
         ]
 
         Layout = [
-            [sg.Menu(menu_def,background_color=bgColor,text_color=textColor)],
+            [sg.Menu(menu_def)],
             [sg.Frame('',leftFrame,border_width=0,p=0,background_color=bgColor),sg.Frame('',rightFrame,border_width=0,p=0,background_color=bgColor)],
         ]
 
     elif scale == 'large':
 
         textScale = 10
-        boxWidth = 200
-        boxHeight = 250
+        boxWidth = 215
+        boxHeight = 240
 
         summaryBoxSize = (3*boxWidth + 4*elementPadding, boxHeight)
         largeBoxSize = (boxWidth, boxHeight)

@@ -98,6 +98,7 @@ def main():
 
     while True:
         window, event, values = sg.read_all_windows()
+        print(event)
 
         if event == sg.WIN_CLOSE_ATTEMPTED_EVENT or sg.WIN_CLOSED or event == None:
             break
@@ -111,7 +112,11 @@ def main():
             elif dropdown == 2:
                 launcher = values[unid + 'dropdown1']
                 updateComponentBox(loadoutTool,unid,dropdown,selection,launcher)
-        
+
+        if event == 'shieldadjustlevel':
+            updateComponentBox(loadoutTool,'shield',1,window['shielddropdown1'].get())
+
+
         if event == 'test':
             name, chassis, mass = loadLoadout(window, fetchSavedata('exitsave')[0])
 
