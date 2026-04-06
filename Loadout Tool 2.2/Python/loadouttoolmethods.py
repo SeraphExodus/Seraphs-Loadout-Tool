@@ -21,6 +21,10 @@ bgColor = '#202225'
 boxColor = '#313338'
 textColor = '#f3f4f5'
 
+fullPowerColor = '#00cc00'
+lowPowerColor = '#ffcc00'
+noPowerColor = '#dd0000'
+
 theme_definition = {'BACKGROUND': boxColor,
                     'TEXT': textColor,
                     'INPUT': bgColor,
@@ -97,13 +101,19 @@ def fetchSavedata(*category):
 def fetchStats(compType, component, output):
     savedComponents = fetchSavedata(compType)
     keys = [toKey(y) for y in [x for x in tables['componentstats'] if toKey(x['comptype']) == compType][0]['stat']]
-    compDict = [x for x in savedComponents if x['name'] == component][0]
-    if output == 'list':
-        return [compDict[x] for x in keys]
-    elif output == 'dict':
-        return compDict
+    if component not in ['', 'None']:
+        compDict = [x for x in savedComponents if x['name'] == component][0]
+        if output == 'list':
+            return [compDict[x] for x in keys]
+        elif output == 'dict':
+            return compDict
+        else:
+            raise ValueError
     else:
-        raise ValueError
+        if output == 'list':
+            return []
+        elif output == 'dict':
+            return {}
 
 def fetchOrdnanceStats(compType):
     rawStats = [x for x in tables['ordnance'] if x['name'] == compType][0]
@@ -132,6 +142,22 @@ def fetchLoadoutStats(window):
                 compType = unid
             statDicts.append({'unid':unid,'stats':fetchStats(compType,component,'dict')})
     return statDicts
+
+def fetchOverloadEffects(window):
+    event, values = window.read(timeout=0)
+
+    overloadSettings = [window['reactoroverloadlevel'].get(),window['engineoverloadlevel'].get(),window['capacitoroverloadlevel'].get(),window['weaponoverloadlevel'].get()]
+    typeMap = ['Reactor Overload', 'Engine Overload', 'Capacitor Overcharge', 'Weapon Overload']
+    levelMap = ['None', 'One', 'Two', 'Three', 'Four']
+    overloadSettings = [levelMap[tryInt(x)] if x != 'None' else 'None' for x in overloadSettings]
+    fcProgs = tables['fcprograms']
+    modifiers = []
+    for i in range(4):
+        if overloadSettings[i] != 'None':
+            modifiers.append([x['modifiers'][1:3] for x in fcProgs if typeMap[i] in x['name'] and overloadSettings[i] in x['name']][0])
+        else:
+            modifiers.append([1, 1])
+    return modifiers
 
 ### Need to create a function to locate existing savedata.dbs to feed into the json converter.
 
@@ -227,14 +253,15 @@ def constructLoadoutSummary(size, textScale):
     dataColumn = []
 
     for i in range(5):
-        textColumn.append([sg.Push(),sg.Text('',key='loadouttext'+str(i),font=baseFont,p=0)])
-        dataColumn.append([sg.Text('',key='loadoutdata'+str(i),font=baseFont,p=0),sg.Push()])
+        textColumn.append([sg.Push(),sg.Text('',key='loadouttext'+str(i),font=summaryFont,p=0)])
+        dataColumn.append([sg.Text('',key='loadoutdata'+str(i),font=summaryFont,p=0),sg.Push()])
 
     layout = [
         [sg.Push(),sg.Text('Loadout Summary',font=headerFont,p=0),sg.Push()],
+        [sg.Push(),sg.Text('',key='loadoutname',font=summaryFont,p=0),sg.Push()],
         [sg.VPush()],
-        [sg.Push(),sg.Text('',key='loadoutname',font=baseFont,p=0),sg.Push()],
-        [sg.Push(),sg.Frame('',textColumn,border_width=0,p=0),sg.Frame('',dataColumn,border_width=0,p=0),sg.Push()]
+        [sg.Push(),sg.Frame('',textColumn,border_width=0,p=0),sg.Frame('',dataColumn,border_width=0,p=0),sg.Push()],
+        [sg.VPush()]
     ]
 
     box = sg.Frame('',layout,border_width=0,p=elementPadding,size=size)
@@ -251,7 +278,7 @@ def constructFCProgramSelector(size, textScale):
         adjustLevels = ['Front - Extreme','Front - Heavy','Front - Moderate','Front - Light','None','Rear - Light','Rear - Moderate','Rear - Heavy','Rear - Extreme']
         adjustComboWidth = 16
     else:
-        adjustLevels = ['Front - Ex','Front - Hvy','Front - Mod','Front - Lt','None','Rear - Lt','Rear - Mod','Rear - Hvy','Rear - Ex']
+        adjustLevels = ['Front - Extr.','Front - Heavy','Front - Mod.','Front - Light','None','Rear - Light','Rear - Mod.','Rear - Heavy','Rear - Extr.']
         adjustComboWidth = 9
 
     textColumn = [
@@ -289,11 +316,17 @@ def constructComponentBox(unid,size,powered,dropdowns,textScale):
 
     headerFont = ("Calibri", textScale+2, 'bold')
     baseFont = ("Calibri", textScale, 'bold')
+
+    width = size[0]
+    halfWidth = size[0]/2-4
+    topHeight = 25
+    bottomHeight = (textScale+10) * dropdowns
+    midHeight = size[1] - (topHeight + bottomHeight + 10)
     
     if powered:
-        titleRow = [[sg.Frame('',[[]],border_width=0,size=(20,20),p=0), sg.Push(), sg.Frame('',[[sg.Text('',font=headerFont,key=unid+'title',p=0)]],border_width=0,p=0), sg.Push(), sg.Frame('',[[sg.Text("⚡",key=unid+'powerboxtext',font=baseFont,text_color=boxColor,p=0,justification='center')]],border_width=0,key=unid+'powerbox',p=0,size=(20,20))]]
+        titleRow = [sg.Frame('',[[sg.Text('',font=headerFont,p=0)]],border_width=0,p=0,size=(20,20)), sg.Push(), sg.Frame('',[[sg.Text('',font=headerFont,key=unid+'title',p=0)]],border_width=0,p=0), sg.Push(), sg.Frame('',[[sg.Text("⚡",key=unid+'powerbox',font=headerFont,text_color=boxColor,p=0,justification='center')]],border_width=0,p=0,size=(20,20))]
     else:
-        titleRow = [[sg.Push(), sg.Frame('',[[sg.Text('',font=headerFont,key=unid + 'title',p=0)]],border_width=0,p=0), sg.Push()]]
+        titleRow = [sg.Push(), sg.Frame('',[[sg.Text('',font=headerFont,key=unid + 'title',p=0)]],border_width=0,p=0), sg.Push()]
 
     textLines = 8 #Just gonna have it default to the maximum for now. Unused lines will remain blank and may be cut off depending on the box dimensions. Saves me some headaches when updating stats.
 
@@ -309,15 +342,9 @@ def constructComponentBox(unid,size,powered,dropdowns,textScale):
         dropdownFrame = [
             [sg.Combo(values=[],default_value='',p=1,enable_events=True,readonly=True,font=baseFont,key=unid+'dropdown1',s=(40,10))]
         ]
-
-    width = size[0]
-    halfWidth = size[0]/2-4
-    topHeight = 25
-    bottomHeight = (textScale+10) * dropdowns
-    midHeight = size[1] - (topHeight + bottomHeight + 10)
  
     box = sg.Frame('',[
-        [sg.Frame('',titleRow,border_width=0,p=0,size=(width,topHeight))],
+        [sg.Frame('',[titleRow],border_width=0,p=0,size=(width,topHeight))],
         [sg.Push(),sg.Frame('',textCol,border_width=0,p=0,size=(halfWidth,midHeight)),sg.Frame('',statCol,border_width=0,p=0,size=(halfWidth,midHeight)),sg.Push()],
         [sg.VPush()],
         [sg.Frame('',dropdownFrame,border_width=0,p=0,size=(width,bottomHeight))],
@@ -373,42 +400,194 @@ def getValidPacks(component):
     else:
         return []
 
-def populateDropdowns(window): #Also expand this later to run through all the dropdowns
+def populateDropdowns(window):
+    event, values = window.read(timeout=0) #Async read to see updates
     global unids
-    #chassis = window['chassistype'].get()
-    chassis = 'Advanced X-Wing' #test
-    for unid in unids:
-        try:
-            previousSelection = window[unid+'dropdown1'].get()
+    chassis = window['loadoutdata0'].get()
+    if chassis != '':
+        for unid in unids:
+            try:
+                disableFlag = False
+                previousSelection = window[unid+'dropdown1'].get()
+                if 'slot' in unid:
+                    header = unidToHeader(unid,chassis)
+                    validComps = getValidComponentTypes(header)
+                    if validComps != []:
+                        disableFlag = False
+                        dropdownCompNames = ['None']
+                        dropdownPackNames = ['None']
+                        for compType in validComps:
+                            savedComponents = fetchSavedata(compType)
+                            dropdownCompNames += [x['name'] for x in savedComponents]
+                        dropdownPackNames += getValidPacks(previousSelection)
+                        if dropdownPackNames != ['None']:
+                            previousPack = window[unid+'dropdown2'].get()
+                            if previousPack not in dropdownPackNames:
+                                previousPack = 'None'
+                            window[unid+'dropdown2'].update(value=previousPack,values=dropdownPackNames,size=(40,10), disabled=False)
+                    else:
+                        dropdownCompNames = ['None']
+                        disableFlag = True
+                        window[unid+'dropdown2'].update(value='None',values=['None'],size=(40,10),disabled=True, visible=False)
+                else:
+                    savedComponents = fetchSavedata(unid)
+                    dropdownCompNames = ['None'] + [x['name'] for x in savedComponents]
+                window[unid+'dropdown1'].update(value=previousSelection,values=dropdownCompNames,size=(40,10), disabled=disableFlag)
+            except:
+                window[unid+'dropdown1'].update(value='None',values=['None'],size=(40,10),disabled=True)
+                if 'slot' in unid:
+                    window[unid+'dropdown2'].update(value='None',values=['None'],size=(40,10),disabled=True, visible=False)
+    else:
+        for unid in unids:
+            window[unid+'dropdown1'].update(value='None',values=['None'],size=(40,10),disabled=True)
             if 'slot' in unid:
-                header = unidToHeader(unid,chassis)
-                validComps = getValidComponentTypes(header)
-                dropdownCompNames = ['None']
-                dropdownPackNames = ['None']
-                for compType in validComps:
-                    savedComponents = fetchSavedata(compType)
-                    dropdownCompNames += [x['name'] for x in savedComponents]
-                dropdownPackNames += getValidPacks(previousSelection)
-                if dropdownPackNames != ['None']:
-                    previousPack = window[unid+'dropdown2'].get()
-                    if previousPack not in dropdownPackNames:
-                        previousPack = 'None'
-                    window[unid+'dropdown2'].update(value=previousPack,values=dropdownPackNames,size=(40,10))
-            else:
-                savedComponents = fetchSavedata(unid)
-                dropdownCompNames = ['None'] + [x['name'] for x in savedComponents]
-            window[unid+'dropdown1'].update(value=previousSelection,values=dropdownCompNames,size=(40,10))
-        except:
-            pass
+                window[unid+'dropdown2'].update(value='None',values=['None'],size=(40,10),disabled=True, visible=False)
 
+def updateMassTotals(window):
+    currentLoadoutName = window['loadoutname'].get()
+    loadoutData = fetchSavedata('loadout')
+
+    if currentLoadoutName != '':
+        try:
+            loadoutMaxMass = tryFloat([x['mass'] for x in loadoutData if x['name'] == currentLoadoutName][0])
+        except:
+            loadoutMaxMass = 0
+
+        currentLoadoutData = fetchLoadoutStats(window)
+        massTotal = sum([x['stats'].get('mass') or 0 for x in currentLoadoutData])
+
+        try:
+            percentage = ' (' + '{:.1f}'.format(round(massTotal/loadoutMaxMass * 100, 1)) + '%)'
+        except:
+            percentage = ''
+
+        remainder = round(loadoutMaxMass - massTotal,1)
+
+        if remainder < 0:
+            color = '#ff0000'
+        else:
+            color = textColor
+
+        window['loadoutdata1'].update('{:.1f}'.format(massTotal) + ' of ' + '{:.1f}'.format(loadoutMaxMass) + percentage,text_color=color)
+        window['loadoutdata2'].update(str(remainder))
+    else:
+        window['loadoutdata1'].update('',text_color=textColor)
+        window['loadoutdata2'].update('')
+
+def updateDrainTotals(window):
+    currentLoadoutName = window['loadoutname'].get()
+    chassisType = window['loadoutdata0'].get()
+    loadoutData = fetchLoadoutStats(window)
+
+    if currentLoadoutName != '':
+        overloadEffects = fetchOverloadEffects(window)
+        try:
+            reactorOverloadedGen = overloadEffects[0][1] * tryFloat([x['stats']['reactorgenerationrate'] for x in loadoutData if x['unid'] == 'reactor'][0])
+        except:
+            reactorOverloadedGen = 0
+        componentDrain = []
+        reactorGenRemaining = reactorOverloadedGen
+        powerHierarchy = ['engine','shield','capacitor','booster','droidinterface','slot0','slot1','slot2','slot3','slot4','slot5','slot6','slot7']
+        for unid in powerHierarchy:
+            component = [x for x in loadoutData if x['unid'] == unid][0]
+            drain = tryFloat(component['stats'].get('reactorenergydrain')) or 0
+            cmFlag = False
+            if drain == 0:
+                window[unid + 'powerbox'].Widget.config(background=boxColor)
+                window[unid + 'powerbox'].update(text_color=boxColor)
+            else:
+                if unid == 'engine':
+                    drain /= overloadEffects[1][0]
+                    reactorGenRemaining -= drain
+                elif unid == 'capacitor':
+                    drain /= overloadEffects[2][0]
+                    reactorGenRemaining -= drain
+                elif 'slot' in unid:
+                    drain /= overloadEffects[3][0]
+                    header = unidToHeader(unid,chassisType)
+                    if 'Countermeasure' in header:
+                        cmFlag = True
+                        reactorGenRemaining -= drain/10
+                    else:
+                        reactorGenRemaining -= drain
+                if reactorGenRemaining >= 0:
+                    window[unid + 'powerbox'].Widget.config(background=fullPowerColor)
+                    window[unid + 'powerbox'].update(text_color='#000000')
+                elif reactorGenRemaining < 0 and reactorGenRemaining + drain >= 0:
+                    window[unid + 'powerbox'].Widget.config(background=lowPowerColor)
+                    window[unid + 'powerbox'].update(text_color='#000000')
+                else:
+                    window[unid + 'powerbox'].Widget.config(background=noPowerColor)
+                    window[unid + 'powerbox'].update(text_color='#000000')
+
+            componentDrain.append({'unid':unid, 'drain':drain, 'cmflag':cmFlag})
+
+        if reactorGenRemaining < 0:
+            color = '#ff0000'
+        else:
+            color = textColor
+
+        reactorConsumedEnergy = reactorOverloadedGen - reactorGenRemaining
+        percentage = ' (' + '{:.1f}'.format(round(reactorConsumedEnergy/reactorOverloadedGen*100,1)) + '%)'
+        window['loadoutdata3'].update('{:.1f}'.format(round(reactorConsumedEnergy,1)) + ' of ' + '{:.1f}'.format(round(reactorOverloadedGen,1)) + percentage,text_color=color)
+
+        minimumReactorEnergy = round(reactorConsumedEnergy / overloadEffects[0][1],1)
+        window['loadoutdata4'].update('{:.1f}'.format(minimumReactorEnergy))
+
+    else:
+        window['loadoutdata3'].update('',text_color=textColor)
+        window['loadoutdata4'].update('')
+
+def updateLoadoutSummary(window, loadout):
+
+    loadoutData = fetchSavedata('loadout')
+
+    try:
+        currentLoadout = [x for x in loadoutData if x['name'] == loadout][0]
+        window['loadoutname'].update(loadout)
+
+        window['loadouttext0'].update('Chassis Type:')
+        window['loadouttext1'].update('Mass Utilization:')
+        window['loadouttext2'].update('Remaining Mass:')
+        window['loadouttext3'].update('Reactor Utilization:')
+        window['loadouttext4'].update('Minimum Required Gen:')
+
+        window['loadoutdata0'].update(currentLoadout['chassis'])
+        window['loadoutdata1'].update(currentLoadout['mass'])
+    except:
+       window['loadoutname'].update('')
+       for i in range(5):
+           window['loadouttext' + str(i)].update('')
+           window['loadoutdata' + str(i)].update('')
+
+def updateOverloads(window, loadout):
+
+    loadoutData = fetchSavedata('loadout')
+    thisLoadout = [x for x in loadoutData if x['name'] == loadout][0]
+    
+    window['reactoroverloadlevel'].update(thisLoadout['rolevel'])
+    window['engineoverloadlevel'].update(thisLoadout['eolevel'])
+    window['capacitoroverloadlevel'].update(thisLoadout['colevel'])
+    window['weaponoverloadlevel'].update(thisLoadout['wolevel'])
+
+    scale = window.metadata
+    adjustMapLarge = ['Front - Extreme','Front - Heavy','Front - Moderate','Front - Light','None','Rear - Light','Rear - Moderate','Rear - Heavy','Rear - Extreme']
+    adjustMapSmall = ['Front - Extr.','Front - Heavy','Front - Mod.','Front - Light','None','Rear - Light','Rear - Mod.','Rear - Heavy','Rear - Extr.']
+    if scale == 'small':
+        mappedValue = adjustMapSmall[adjustMapLarge.index(thisLoadout['adjust'])]
+        window['shieldadjustlevel'].update(mappedValue)
+    else:
+        window['shieldadjustlevel'].update(thisLoadout['adjust'])
+
+    
 def updateComponentBox(window,unid,dropdown,component,*launcher):
     """
     Update component box (unid) with selected component.
     Calls subroutines to update loadout mass/power levels and update box power levels
     """
-    #chassis = window['chassistype'].get()
 
-    chassis = 'Advanced X-Wing' #test
+    event, values = window.read(timeout=0) #async window read to get updates
+    chassis = window['loadoutdata0'].get()
 
     updateType = 1
 
@@ -474,18 +653,24 @@ def updateComponentBox(window,unid,dropdown,component,*launcher):
 
     if unid == 'shield' and component != 'None': #apply shield adjust
         adjust = window['shieldadjustlevel'].get()
+        adjustMapLarge = ['Front - Extreme','Front - Heavy','Front - Moderate','Front - Light','None','Rear - Light','Rear - Moderate','Rear - Heavy','Rear - Extreme']
+        adjustMapSmall = ['Front - Extr.','Front - Heavy','Front - Mod.','Front - Light','None','Rear - Light','Rear - Mod.','Rear - Heavy','Rear - Extr.']
         if adjust != 'None':
             side = adjust.split(' ')[0]
             level = adjust.split(' ')[2]
+            if window.metadata == 'small':
+                level = level.split('.')[0]
             programData = [x for x in tables['fcprograms'] if all(['Adjust' in x['name'], side in x['name'], level in x['name']])][0]
+            dispAdjust = programData['name'].split(' ')[1] + ' - ' + programData['name'].split(' ')[4]
+            if window.metadata == 'small':
+                dispAdjust = adjustMapSmall[adjustMapLarge.index(dispAdjust)] #annoying to have to change it to full-length and then back but it is what it is.
             dispStats[5:8] = ['Adjust:', 'Front HP:', 'Back HP:']
-            compStats[5:8] = [programData['name'].split(' ')[1] + ' - ' + programData['name'].split(' ')[4], compStats[2] * programData['modifiers'][7], compStats[2] * (2 - programData['modifiers'][7])]
+            compStats[5:8] = [dispAdjust, compStats[2] * programData['modifiers'][7], compStats[2] * (2 - programData['modifiers'][7])]
         else:
             dispStats[4:9] = [''] * 4
-            compStats[4:9] = [''] * 4
-            
+            compStats[4:9] = [''] * 4 
 
-    for i in range(len(dispStats)): #note: will have to update later to add lines to shield for adjust in line with current implementation but obv can't do that until fc settings are re-implemented.
+    for i in range(len(dispStats)):
         if compStats[i] != '':
             if dispStats[i] in ['Vs. Shields:','Vs. Armor:','Refire Rate:']:
                 compStats[i] = "{:.3f}".format(tryFloat(compStats[i])) #tryfloat needed in case the stats are saved as strings (just a failsafe, definitely not because I'm lazy in how I store data)
@@ -499,10 +684,12 @@ def updateComponentBox(window,unid,dropdown,component,*launcher):
         window[unid+'textline'+str(i)].update(dispStats[i])
         window[unid+'statline'+str(i)].update(compStats[i])
 
-    populateDropdowns(window)
-
 def loadLoadout(window, loadout):
     global unids
+
+    updateLoadoutSummary(window, loadout['name'])
+    updateOverloads(window,loadout['name'])
+    event, values = window.read(timeout=0)
 
     for unid in unids:
         dropdowns = [1]
@@ -550,8 +737,7 @@ def loadLoadout(window, loadout):
         if newValue2 != []:
             window[unid+'dropdown2'].update(value=newValue2)
             updateComponentBox(window,unid,2,newValue2,newValue)
-
-    return loadout['name'], loadout['chassis'], loadout['mass']
+    
 
 def move_center(window):
     screen_width, screen_height = window.get_screen_dimensions()
@@ -598,26 +784,27 @@ def buildWindow(currentVersion, scale, menu_def):
         textScale = 8
         boxWidth = 161
         boxHeight = 213
-        boxHeightShort = 153
+        boxHeightShort = 163
 
         summaryBoxSize = (2*boxWidth + 2*elementPadding, boxHeightShort)
         largeBoxSize = (boxWidth, boxHeight)
         smallBoxSizeA = (boxWidth, boxHeightShort)
         smallBoxSizeB = (boxWidth, boxHeight/2-4)
-        smallBoxSizeC = (boxWidth, boxHeight-boxHeightShort/2-4)
-        smallBoxSizeD = (boxWidth, boxHeightShort/2-4)
+        smallBoxSizeC = (boxWidth, boxHeightShort/2+5)
+        smallBoxSizeD = (boxWidth, boxHeight-boxHeightShort/2-4)
+        smallBoxSizeE = (boxWidth, boxHeightShort/2-13)
 
         leftFrame = [
-            [constructLoadoutSummary(summaryBoxSize,textScale),constructComponentBox('reactor',smallBoxSizeA,False,1,textScale)],
+            [constructLoadoutSummary(summaryBoxSize,textScale),sg.Frame('',[[constructComponentBox('reactor',smallBoxSizeC,False,1,textScale)],[constructComponentBox('cargohold',smallBoxSizeE,False,1,textScale)]],border_width=0,p=0,background_color=bgColor)],
             [constructComponentBox('engine',largeBoxSize,True,1,textScale),constructComponentBox('booster',largeBoxSize,True,1,textScale),constructComponentBox('slot0',largeBoxSize,True,2,textScale)],
-            [sg.Frame('',[[constructComponentBox('shield',smallBoxSizeC,True,1,textScale)],[constructComponentBox('cargohold',smallBoxSizeD,False,1,textScale)]],border_width=0,p=0,background_color=bgColor),
-             sg.Frame('',[[constructComponentBox('frontarmor',smallBoxSizeB,False,1,textScale)],[constructComponentBox('reararmor',smallBoxSizeB,False,1,textScale)]],border_width=0,p=0,background_color=bgColor),constructComponentBox('slot4',largeBoxSize,True,2,textScale)]
+            [sg.Frame('',[[constructComponentBox('shield',largeBoxSize,True,1,textScale)],],border_width=0,p=0,background_color=bgColor),
+             sg.Frame('',[[constructComponentBox('frontarmor',smallBoxSizeB,False,1,textScale)],[constructComponentBox('reararmor',smallBoxSizeB,False,1,textScale)]],border_width=0,p=0,background_color=bgColor),constructComponentBox('slot1',largeBoxSize,True,2,textScale)]
         ]
     
         rightFrame = [
             [constructComponentBox('capacitor',smallBoxSizeA,True,1,textScale),constructComponentBox('droidinterface',smallBoxSizeA,True,1,textScale),constructFCProgramSelector(smallBoxSizeA,textScale)],
-            [constructComponentBox('slot1',largeBoxSize,True,2,textScale),constructComponentBox('slot2',largeBoxSize,True,2,textScale),constructComponentBox('slot3',largeBoxSize,True,2,textScale)],
-            [constructComponentBox('slot5',largeBoxSize,True,2,textScale),constructComponentBox('slot6',largeBoxSize,True,2,textScale),constructComponentBox('slot7',largeBoxSize,True,2,textScale)]
+            [constructComponentBox('slot2',largeBoxSize,True,2,textScale),constructComponentBox('slot4',largeBoxSize,True,2,textScale),constructComponentBox('slot6',largeBoxSize,True,2,textScale)],
+            [constructComponentBox('slot3',largeBoxSize,True,2,textScale),constructComponentBox('slot5',largeBoxSize,True,2,textScale),constructComponentBox('slot7',largeBoxSize,True,2,textScale)]
         ]
 
         Layout = [
@@ -635,20 +822,20 @@ def buildWindow(currentVersion, scale, menu_def):
         largeBoxSize = (boxWidth, boxHeight)
         smallBoxSizeA = (boxWidth, boxHeight/2+13)
         smallBoxSizeB = (boxWidth, boxHeight/2-4)
-        smallBoxSizeC = (boxWidth, boxHeight/2-19)
+        smallBoxSizeD = (boxWidth, boxHeight/2-19)
 
         leftFrame = [
             [constructLoadoutSummary(summaryBoxSize,textScale)],
             [constructComponentBox('engine',largeBoxSize,True,1,textScale),constructComponentBox('booster',largeBoxSize,True,1,textScale),constructComponentBox('slot0',largeBoxSize,True,2,textScale)],
-            [constructComponentBox('shield',largeBoxSize,True,1,textScale),sg.Frame('',[[constructComponentBox('frontarmor',smallBoxSizeB,False,1,textScale)],[constructComponentBox('reararmor',smallBoxSizeB,False,1,textScale)]],border_width=0,p=0,background_color=bgColor),constructComponentBox('slot4',largeBoxSize,True,2,textScale)]
+            [constructComponentBox('shield',largeBoxSize,True,1,textScale),sg.Frame('',[[constructComponentBox('frontarmor',smallBoxSizeB,False,1,textScale)],[constructComponentBox('reararmor',smallBoxSizeB,False,1,textScale)]],border_width=0,p=0,background_color=bgColor),constructComponentBox('slot1',largeBoxSize,True,2,textScale)]
         ]
     
         rightFrame = [
             [constructFCProgramSelector(largeBoxSize,textScale),
-            sg.Frame('',[[constructComponentBox('reactor',smallBoxSizeC,False,1,textScale)],[constructComponentBox('droidinterface',smallBoxSizeA,True,1,textScale)]],border_width=0,p=0,background_color=bgColor),
-            sg.Frame('',[[constructComponentBox('cargohold',smallBoxSizeC,False,1,textScale)],[constructComponentBox('capacitor',smallBoxSizeA,True,1,textScale)]],border_width=0,p=0,background_color=bgColor)],
-            [constructComponentBox('slot1',largeBoxSize,True,2,textScale),constructComponentBox('slot2',largeBoxSize,True,2,textScale),constructComponentBox('slot3',largeBoxSize,True,2,textScale)],
-            [constructComponentBox('slot5',largeBoxSize,True,2,textScale),constructComponentBox('slot6',largeBoxSize,True,2,textScale),constructComponentBox('slot7',largeBoxSize,True,2,textScale)]
+            sg.Frame('',[[constructComponentBox('reactor',smallBoxSizeD,False,1,textScale)],[constructComponentBox('droidinterface',smallBoxSizeA,True,1,textScale)]],border_width=0,p=0,background_color=bgColor),
+            sg.Frame('',[[constructComponentBox('cargohold',smallBoxSizeD,False,1,textScale)],[constructComponentBox('capacitor',smallBoxSizeA,True,1,textScale)]],border_width=0,p=0,background_color=bgColor)],
+            [constructComponentBox('slot2',largeBoxSize,True,2,textScale),constructComponentBox('slot4',largeBoxSize,True,2,textScale),constructComponentBox('slot6',largeBoxSize,True,2,textScale)],
+            [constructComponentBox('slot3',largeBoxSize,True,2,textScale),constructComponentBox('slot5',largeBoxSize,True,2,textScale),constructComponentBox('slot7',largeBoxSize,True,2,textScale)]
         ]
 
         Layout = [
@@ -659,7 +846,7 @@ def buildWindow(currentVersion, scale, menu_def):
     else:
         pass
     
-    loadoutTool = sg.Window("Seraph's Loadout Tool V" + currentVersion,Layout, finalize=True, background_color=bgColor, icon=os.path.abspath(os.path.join(os.path.dirname(__file__), 'SLT_Icon.ico')), margins=(elementPadding, elementPadding), enable_close_attempted_event=True, resizable=False)
+    loadoutTool = sg.Window("Seraph's Loadout Tool V" + currentVersion,Layout, finalize=True, background_color=bgColor, icon=os.path.abspath(os.path.join(os.path.dirname(__file__), 'SLT_Icon.ico')), margins=(elementPadding, elementPadding), enable_close_attempted_event=True, resizable=False, metadata=scale)
 
     return loadoutTool
 

@@ -95,10 +95,13 @@ def main():
 
     for unid in unids:
         updateComponentBox(loadoutTool,unid,1,'None')
+    
+    updateMassTotals(loadoutTool)
+    updateDrainTotals(loadoutTool)
+    populateDropdowns(loadoutTool)
 
     while True:
         window, event, values = sg.read_all_windows()
-        print(event)
 
         if event == sg.WIN_CLOSE_ATTEMPTED_EVENT or sg.WIN_CLOSED or event == None:
             break
@@ -109,16 +112,25 @@ def main():
             selection = values[event]
             if dropdown == 1:
                 updateComponentBox(loadoutTool,unid,dropdown,selection)
+                updateMassTotals(window)
+                updateDrainTotals(window)
             elif dropdown == 2:
                 launcher = values[unid + 'dropdown1']
                 updateComponentBox(loadoutTool,unid,dropdown,selection,launcher)
+                
+
+        if 'overload' in event:
+            print(event)
+            updateDrainTotals(loadoutTool)
 
         if event == 'shieldadjustlevel':
             updateComponentBox(loadoutTool,'shield',1,window['shielddropdown1'].get())
 
-
         if event == 'test':
-            name, chassis, mass = loadLoadout(window, fetchSavedata('exitsave')[0])
+            loadLoadout(window, fetchSavedata('exitsave')[0])
+            updateMassTotals(loadoutTool)
+            updateDrainTotals(loadoutTool)
+            populateDropdowns(loadoutTool)
 
         if event == 'Change Window Scale':
             if windowSize == 'small':
