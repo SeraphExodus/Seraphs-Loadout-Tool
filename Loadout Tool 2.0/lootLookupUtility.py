@@ -18,7 +18,29 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from PIL import ImageGrab
 from win32gui import FindWindow, GetWindowRect
 
-displayScaleFactor = ctypes.windll.shcore.GetScaleFactorForDevice(0)/100
+dataDir = os.getenv('APPDATA') + "\\Seraph's Loadout Tool"
+
+global displayScaleFactor
+global menuBarScaling
+
+try:
+    compdb = sqlite3.connect('file:'+ dataDir +'\\savedata.db?mode=rw', uri=True)
+    cur2 = compdb.cursor()
+    displaySetting = bool(cur2.execute("SELECT setting FROM display").fetchall()[0][0])
+    compdb.close()
+    if displaySetting:
+        ctypes.windll.user32.SetProcessDpiAwarenessContext(ctypes.wintypes.HANDLE(-1))
+        displayScaleFactor = ctypes.windll.shcore.GetScaleFactorForDevice(0)/100
+        menuBarScaling = 1
+    else:
+        ctypes.windll.user32.SetProcessDpiAwarenessContext(ctypes.wintypes.HANDLE(-2))
+        displayScaleFactor = 1
+        menuBarScaling = ctypes.windll.shcore.GetScaleFactorForDevice(0)/100
+except:
+    displaySetting = False
+    ctypes.windll.user32.SetProcessDpiAwarenessContext(ctypes.wintypes.HANDLE(-2))
+    displayScaleFactor = 1
+    menuBarScaling = ctypes.windll.shcore.GetScaleFactorForDevice(0)/100
 
 fontList = sg.Text.fonts_installed_list()
 
@@ -690,8 +712,8 @@ def getShipInfo(selection):
         if event == 'Capture Screenshot':
             appWindow = FindWindow(None, "Ship Info")
             rect = GetWindowRect(appWindow)
-            rect = (rect[0]+8, rect[1]+31, rect[2]-8, rect[3]-8)
-            rect = [displayScaleFactor * x for x in rect]
+            rect = (rect[0]+8, rect[1]+31*menuBarScaling, rect[2]-8, rect[3]-8)
+            rect = [x*displayScaleFactor for x in rect]
             rect = [np.ceil(rect[0]),np.ceil(rect[1]),np.floor(rect[2]),np.floor(rect[3])]
             grab = ImageGrab.grab(bbox=rect, all_screens=True)
             screencapOutput = BytesIO()
@@ -1054,7 +1076,9 @@ def lootLookup():
         if event == 'Capture Screenshot':
             appWindow = FindWindow(None, "Loot Lookup Utility")
             rect = GetWindowRect(appWindow)
-            rect = (rect[0]+8, rect[1]+31, rect[2]-8, rect[3]-8)
+            rect = (rect[0]+8, rect[1]+31*menuBarScaling, rect[2]-8, rect[3]-8)
+            rect = [x*displayScaleFactor for x in rect]
+            rect = [np.ceil(rect[0]),np.ceil(rect[1]),np.floor(rect[2]),np.floor(rect[3])]
             grab = ImageGrab.grab(bbox=rect, all_screens=True)
             screencapOutput = BytesIO()
             grab.convert("RGB").save(screencapOutput,"BMP")

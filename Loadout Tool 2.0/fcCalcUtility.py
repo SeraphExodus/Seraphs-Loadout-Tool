@@ -1,3 +1,4 @@
+import ctypes
 import FreeSimpleGUI as sg
 import json
 import numpy as np
@@ -7,6 +8,8 @@ import sys
 import win32clipboard
 
 from datetime import datetime, timedelta
+
+ctypes.windll.user32.SetProcessDPIAware()
 
 headerFont = ("Calibri", 12, "bold")
 summaryFont = ("Calibri", 11, "bold")
@@ -39,8 +42,25 @@ global tables
 global compdb
 global cur2
 
+dataDir = os.getenv('APPDATA') + "\\Seraph's Loadout Tool"
+
+global displayScaleFactor
+global menuBarScaling
+
 try:
-    with open(os.getenv('APPDATA') + "\\Seraph's Loadout Tool\\data.json", 'r') as f:
+    compdb = sqlite3.connect('file:'+ dataDir +'\\savedata.db?mode=rw', uri=True)
+    cur2 = compdb.cursor()
+    displaySetting = bool(cur2.execute("SELECT setting FROM display").fetchall()[0][0])
+    compdb.close()
+    if displaySetting:
+        ctypes.windll.user32.SetProcessDpiAwarenessContext(ctypes.wintypes.HANDLE(-1))
+    else:
+        ctypes.windll.user32.SetProcessDpiAwarenessContext(ctypes.wintypes.HANDLE(-2))
+except:
+    ctypes.windll.user32.SetProcessDpiAwarenessContext(ctypes.wintypes.HANDLE(-2))
+
+try:
+    with open(dataDir + "\\data.json", 'r') as f:
         tables = json.load(f)
 except:
     print('An error occurred. Table data could not be located.')

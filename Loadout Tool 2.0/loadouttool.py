@@ -21,13 +21,53 @@ from win32gui import FindWindow, GetWindowRect
 
 from buildCompList import buildComponentList #Not dependent on dbs existing until it's actually executed
 
+###Release Procedure:
+###Update VERSION NUMBER FIRST in both this file and on the gist.
+###Generate .exe
+###Upload new version
+###Update gist with new download link
+
+currentVersion = "2.18.0"
+
+versionURL = "https://gist.github.com/SeraphExodus/8ae0b6980e3780e8782847dbe76b0bf5/raw"
+
+dataURL = "https://gist.githubusercontent.com/SeraphExodus/3f7c877ff39cc8d93db93720c167450f/raw/data.json"
+
+dataDir = os.getenv('APPDATA') + "\\Seraph's Loadout Tool"
+
 versionOverride = False #Set true to omit version checking for test releases. Set false for any actual release.
 
 throttleProfileCaptureMode = False #Set to false for normal screencapping, true to only capture the throttle profile with wiki background color for updating wiki pages
 
 fontList = sg.Text.fonts_installed_list()
 
-displayScaleFactor = ctypes.windll.shcore.GetScaleFactorForDevice(0)/100
+global tables
+global compdb
+global cur2
+
+#Cludge time! Need to attempt to pull the display setting before we properly open the compdb for keeps. I hate it but it is what it is. Needs a refactor.
+
+global displayScaleFactor
+global menuBarScaling
+
+try:
+    compdb = sqlite3.connect('file:'+ dataDir +'\\savedata.db?mode=rw', uri=True)
+    cur2 = compdb.cursor()
+    displaySetting = bool(cur2.execute("SELECT setting FROM display").fetchall()[0][0])
+    compdb.close()
+    if displaySetting:
+        ctypes.windll.user32.SetProcessDpiAwarenessContext(ctypes.wintypes.HANDLE(-1))
+        displayScaleFactor = ctypes.windll.shcore.GetScaleFactorForDevice(0)/100
+        menuBarScaling = 1
+    else:
+        ctypes.windll.user32.SetProcessDpiAwarenessContext(ctypes.wintypes.HANDLE(-2))
+        displayScaleFactor = 1
+        menuBarScaling = ctypes.windll.shcore.GetScaleFactorForDevice(0)/100
+except:
+    displaySetting = False
+    ctypes.windll.user32.SetProcessDpiAwarenessContext(ctypes.wintypes.HANDLE(-2))
+    displayScaleFactor = 1
+    menuBarScaling = ctypes.windll.shcore.GetScaleFactorForDevice(0)/100
 
 scaleFactor = 1
 
@@ -175,20 +215,6 @@ def alert(headerText, textLines, buttons, timeout, *settings): #define alert so 
             alertWindow.close()
             return event
 
-###Release Procedure:
-###Update VERSION NUMBER FIRST in both this file and on the gist.
-###Generate .exe
-###Upload new version
-###Update gist with new download link
-
-currentVersion = "2.18.0"
-
-versionURL = "https://gist.github.com/SeraphExodus/8ae0b6980e3780e8782847dbe76b0bf5/raw"
-
-dataURL = "https://gist.githubusercontent.com/SeraphExodus/3f7c877ff39cc8d93db93720c167450f/raw/data.json"
-
-dataDir = os.getenv('APPDATA') + "\\Seraph's Loadout Tool"
-
 #Attempt to get table data from gist. Then load local data. If gist data differs from local data, overwrite local data with gist data. If unable to get web data, use local data. If local data isn't available, unpack data included in exe.
 
 try:
@@ -317,10 +343,6 @@ if os.path.exists('Data\\tables.db'): #Cleans up old data and stuff that isn't u
         break
     if empty:
         os.removedirs("Data")
-
-global tables
-global compdb
-global cur2
 
 tables = tableData
 
@@ -3657,12 +3679,15 @@ def setMenus(menuEnables):
             ['&Loadout', ['&New Loadout', openLoadoutString, saveString, saveAsString, '&Quit']],
             ['&Components', ['Add and &Manage Components', clearCompString]],
             ['&Tools', ['&Reverse Engineering Calculator','&Flight Computer Calculator','&Loot Lookup Tool','&Import v1.x Data', '&Check for Updates']],
+            ['&Settings',['&Display Settings']],
             ['&Help', ['&About','&Keyboard Shortcuts']]
         ]
         
     return menu_def
 
 def main():
+
+    restartFlag = False
 
     init = datetime.now()
     print('init',init)
@@ -3678,6 +3703,12 @@ def main():
         except:
             alert('Fatal Error',["Fatal Error: You do not appear to have permission to write data to the tool's database files.","Try right-clicking the application icon and selecting 'Run as Administrator'."],[],10)
             return
+
+        try:
+            displayScalingToggle = bool(cur2.execute("SELECT setting FROM display").fetchall()[0][0])
+            print(cur2.execute("SELECT setting FROM display").fetchall()[0][0],displayScalingToggle)
+        except:
+            displayScalingToggle = True #Determines whether to use Windows display scaling to upscale the application window. Can be switched off via menus for smaller monitors that use higher scaling.
 
         menuEnables = [False, False, False]
 
@@ -4633,10 +4664,10 @@ def main():
                 appWindow = FindWindow(None, "Seraph's Loadout Tool V" + currentVersion)
                 rect = GetWindowRect(appWindow)
                 if throttleProfileCaptureMode:
-                    rect = (rect[0]+8+1123+26, rect[1]+51+235+195+8+8+8+1+28, rect[2]-8-8-25, rect[3]-8-87-8-8-7)
+                    rect = (rect[0]+8+1123+26, rect[1]+51*menuBarScaling+235+195+8+8+8+1+28, rect[2]-8-8-25, rect[3]-8-87-8-8-7)
                 else:
-                    rect = (rect[0]+8, rect[1]+51, rect[2]-8, rect[3]-8)
-                rect = [displayScaleFactor * x for x in rect]
+                    rect = (rect[0]+8, rect[1]+51*menuBarScaling, rect[2]-8, rect[3]-8)
+                rect = [x*displayScaleFactor for x in rect]
                 rect = [np.ceil(rect[0]),np.ceil(rect[1]),np.floor(rect[2]),np.floor(rect[3])]
                 grab = ImageGrab.grab(bbox=rect, all_screens=True)
                 screencapOutput = BytesIO()
@@ -4744,6 +4775,24 @@ def main():
                 lootLookupProcess = multiprocessing.Process(target=lootLookup,args=())
                 lootLookupProcess.daemon = True
                 lootLookupProcess.start()
+
+            if event == 'Display Settings':
+                cur2.execute("CREATE TABLE IF NOT EXISTS display (setting)")
+                if displayScalingToggle:
+                    buttonText = 'Turn Off Scaling'
+                    statusText = 'On'
+                else:
+                    buttonText = 'Turn On Scaling'
+                    statusText = 'Off'
+                response = alert("Display Settings",['Use the buttons below to toggle whether or not the application should scale with your Windows display scaling.','This setting affects all windows.','Current Setting: ' + statusText],[buttonText,'Cancel'],0)
+                if response in ['Turn On Scaling','Turn Off Scaling']: #Keeping it general in case it returns win closed or something silly
+                    if response == 'Turn On Scaling':
+                        cur2.execute('UPDATE display SET setting = ?',[True])
+                    elif response == 'Turn Off Scaling':
+                        cur2.execute('UPDATE display SET setting = ?',[False])
+                    alert("Display Settings",['The application will now close. Restart for the change to take effect.'],['Okay'],0)
+                    event = 'Quit'
+                    compdb.commit()
             
             if delta:
                 currLoadout = window['loadoutname'].get()

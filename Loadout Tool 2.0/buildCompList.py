@@ -1,5 +1,7 @@
+import json
 import os
 import sqlite3
+import sys
 
 def buildComponentList(dataDir):
 
@@ -16,28 +18,29 @@ def buildComponentList(dataDir):
         print('savedata.db already exists. Cancelling operation.')
         return
 
-    tables = sqlite3.connect("file:"+os.path.abspath(os.path.join(os.path.dirname(__file__), 'tables.db'))+"?mode=ro", uri=True)
-    cur1 = tables.cursor()
+    dataDir = os.getenv('APPDATA') + "\\Seraph's Loadout Tool"
+
+    try:
+        with open(os.getenv('APPDATA') + "\\Seraph's Loadout Tool\\data.json", 'r') as f:
+            tables = json.load(f)
+    except:
+        print('An error occurred. Table data could not be located.')
+        sys.exit()
 
     compdb = sqlite3.connect('file:' + dataDir + "\\savedata.db?mode=rw", uri=True)  
     cur2 = compdb.cursor()
 
-    raw = cur1.execute("SELECT * FROM component").fetchall()
+    raw = tables['componentstats']
     statsList = []
     newRow = ""
     headers = ""
     headerList = []
 
-    for i in range(0, len(raw)):
+    for i in raw:
         newRow = ""
-        for j in range(0, len(raw[i])):
-            if raw[i][j] == "" or len(raw[i][j].lower().replace(" ", "").replace("/", "").replace(".", "")) <= 2 or raw[i][j][-1] == ":":
-                pass
-            elif j > 0:
-                newRow += raw[i][j].lower().replace(" ", "").replace("/", "").replace(".", "") + ", "
-            if j == 0:
-                headers += raw[i][j].lower().replace(" ", "").replace("/", "").replace(".", "") + ", "
-                headerList.append(raw[i][j].lower().replace(" ", "").replace("/", "").replace(".", ""))
+        for j in i['stat']:
+            newRow += j.lower().replace(" ", "").replace("/", "").replace(".", "") + ", "
+        headerList.append(i['comptype'].lower().replace(" ", "").replace("/", "").replace(".", ""))
         statsList.append("name UNIQUE, " + newRow[:-2])
 
     headers = headers[:-2]

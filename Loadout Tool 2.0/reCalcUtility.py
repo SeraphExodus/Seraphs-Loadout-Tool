@@ -13,8 +13,6 @@ from io import BytesIO
 from PIL import ImageGrab
 from win32gui import FindWindow, GetWindowRect
 
-displayScaleFactor = ctypes.windll.shcore.GetScaleFactorForDevice(0)/100
-
 fontList = sg.Text.fonts_installed_list()
 
 headerFont = ("Calibri", 12, "bold")
@@ -50,8 +48,30 @@ global cur2
 
 dataDir = os.getenv('APPDATA') + "\\Seraph's Loadout Tool"
 
+global displayScaleFactor
+global menuBarScaling
+
 try:
-    with open(os.getenv('APPDATA') + "\\Seraph's Loadout Tool\\data.json", 'r') as f:
+    compdb = sqlite3.connect('file:'+ dataDir +'\\savedata.db?mode=rw', uri=True)
+    cur2 = compdb.cursor()
+    displaySetting = bool(cur2.execute("SELECT setting FROM display").fetchall()[0][0])
+    compdb.close()
+    if displaySetting:
+        ctypes.windll.user32.SetProcessDpiAwarenessContext(ctypes.wintypes.HANDLE(-1))
+        displayScaleFactor = ctypes.windll.shcore.GetScaleFactorForDevice(0)/100
+        menuBarScaling = 1
+    else:
+        ctypes.windll.user32.SetProcessDpiAwarenessContext(ctypes.wintypes.HANDLE(-2))
+        displayScaleFactor = 1
+        menuBarScaling = ctypes.windll.shcore.GetScaleFactorForDevice(0)/100
+except:
+    displaySetting = False
+    ctypes.windll.user32.SetProcessDpiAwarenessContext(ctypes.wintypes.HANDLE(-2))
+    displayScaleFactor = 1
+    menuBarScaling = ctypes.windll.shcore.GetScaleFactorForDevice(0)/100
+
+try:
+    with open(dataDir + "\\data.json", 'r') as f:
         tables = json.load(f)
 except:
     print('An error occurred. Table data could not be located.')
@@ -2478,8 +2498,8 @@ def reCalc():
             if event == 'Capture Screenshot':
                 appWindow = FindWindow(None, "Reverse Engineering Analysis")
                 rect = GetWindowRect(appWindow)
-                rect = (rect[0]+8, rect[1]+31, rect[2]-8, rect[3]-8)
-                rect = [displayScaleFactor * x for x in rect]
+                rect = (rect[0]+8, rect[1]+31*menuBarScaling, rect[2]-8, rect[3]-8)
+                rect = [x*displayScaleFactor for x in rect]
                 rect = [np.ceil(rect[0]),np.ceil(rect[1]),np.floor(rect[2]),np.floor(rect[3])]
                 grab = ImageGrab.grab(bbox=rect, all_screens=True)
                 screencapOutput = BytesIO()
@@ -2497,8 +2517,8 @@ def reCalc():
             if event == 'Capture Screenshot':
                 appWindow = FindWindow(None, "Brand Rarity Breakdown")
                 rect = GetWindowRect(appWindow)
-                rect = (rect[0]+8, rect[1]+31, rect[2]-8, rect[3]-8)
-                rect = [displayScaleFactor * x for x in rect]
+                rect = (rect[0]+8, rect[1]+31*menuBarScaling, rect[2]-8, rect[3]-8)
+                rect = [x*displayScaleFactor for x in rect]
                 rect = [np.ceil(rect[0]),np.ceil(rect[1]),np.floor(rect[2]),np.floor(rect[3])]
                 grab = ImageGrab.grab(bbox=rect, all_screens=True)
                 screencapOutput = BytesIO()
@@ -2519,8 +2539,8 @@ def reCalc():
             if event == 'Capture Screenshot':
                 appWindow = FindWindow(None, "Reverse Engineering Calculator")
                 rect = GetWindowRect(appWindow)
-                rect = (rect[0]+8, rect[1]+51, rect[2]-8, rect[3]-8)
-                rect = [displayScaleFactor * x for x in rect]
+                rect = (rect[0]+8, rect[1]+51*menuBarScaling, rect[2]-8, rect[3]-8)
+                rect = [x*displayScaleFactor for x in rect]
                 rect = [np.ceil(rect[0]),np.ceil(rect[1]),np.floor(rect[2]),np.floor(rect[3])]
                 grab = ImageGrab.grab(bbox=rect, all_screens=True)
                 screencapOutput = BytesIO()
