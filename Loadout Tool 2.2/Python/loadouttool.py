@@ -38,6 +38,8 @@ saveDir = os.getenv("APPDATA") + "\\Seraph's Loadout Tool\\"
 with open(os.path.abspath(saveDir + 'savedata.json')) as jsonSavedata:
     savedata = json.load(jsonSavedata)
 
+print(savedata)
+
 bgColor = '#202225'
 boxColor = '#313338'
 textColor = '#f3f4f5'

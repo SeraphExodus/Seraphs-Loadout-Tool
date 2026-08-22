@@ -1,5 +1,6 @@
 import ctypes
 import FreeSimpleGUI as sg
+import json
 import math
 import matplotlib as mpl
 import matplotlib.font_manager as fm
@@ -8,6 +9,7 @@ import numpy as np
 import operator
 import os
 import sqlite3
+import sys
 import win32clipboard
 
 from datetime import datetime, timedelta
@@ -59,11 +61,12 @@ sg.theme_add_new('Discord_Dark', theme_definition)
 
 sg.theme('Discord_Dark')
 
-global tables
-global cur
-
-tables = sqlite3.connect("file:"+os.path.abspath(os.path.join(os.path.dirname(__file__), 'tables.db'))+"?mode=ro", uri=True)
-cur = tables.cursor()
+try:
+    with open(os.getenv('APPDATA') + "\\Seraph's Loadout Tool\\data.json", 'r') as f:
+        tables = json.load(f)
+except:
+    print('An error occurred. Table data could not be located.')
+    sys.exit()
 
 specialSources = ['Convoy Crate', 'Kash Nunes', 'Space Battle Reward', 'Lord Cyssc', "Nym's Starmap", 'High-Tier', 'Beacon', 'GCW2 Reward']
 
@@ -229,7 +232,7 @@ def constructConvoyStandardTable():
     for i in ['a','b','c','d','e','r','s','w']:
         for j in ['5','6','7','8','9','0']:
             tableid = 'equipment_kash_nunes_' + i + j
-            parts = [x for x in list(cur.execute("SELECT * FROM loottables WHERE loottable = ?", [tableid]).fetchall()[0])[1:] if x != '']
+            parts = [x['entries'] for x in tables['loottables'] if x['tablename'] == tableid][0]
             kashParts.extend(parts)
             #selecting from 48 tables
             kashRates.extend([np.float64(1/(len(parts) * 48))] * len(parts))
@@ -238,39 +241,18 @@ def constructConvoyStandardTable():
 
 def buildTable(entry):
 
-    brands = cur.execute("SELECT * FROM brands").fetchall()
-    componentids = []
-    componentStrings = []
-    componentLevels = []
-    componentData = []
-    for i in brands:
-        componentids.append(i[0])
-        componentStrings.append(i[1])
-        componentLevels.append(i[2])
-        componentData.append(i[3:])
+    componentids = [x['path'] for x in tables['brandslist']]
+    componentStrings = [x['name'] for x in tables['brandslist']]
 
-    npcShips = cur.execute("SELECT * FROM npcships").fetchall()
-    ships = []
-    rates = []
-    groups = []
-    for i in npcShips:
-        ships.append(i[0])
-        rates.append(tryFloat(i[2]) * tryFloat(i[3]))
-        groups.append(i[4])
+    ships = [x['unid'] for x in tables['shiptable']]
+    rates = [tryFloat(x['dropcount']) * tryFloat(x['droprate']) for x in tables['shiptable']]
+    groups = [x['lootgroup'] for x in tables['shiptable']]
     
-    lootGroups = cur.execute("SELECT * FROM lootgroups").fetchall()
-    groupids = []
-    groupTables = []
-    for i in lootGroups:
-        groupids.append(i[0])
-        groupTables.append(i[1:])
+    groupids = [x['groupname'] for x in tables['lootgroups']]
+    groupTables = [x['grouptables'] for x in tables['lootgroups']]
 
-    lootTables = cur.execute("SELECT * FROM loottables").fetchall()
-    tableids = []
-    loot = []
-    for i in lootTables:
-        tableids.append(i[0])
-        loot.append(i[1:])
+    tableids = [x['tablename'] for x in tables['loottables']]
+    loot = [x['entries'] for x in tables['loottables']]
 
     dropRate = rates[ships.index(entry)]
     if dropRate == 0:
@@ -305,13 +287,11 @@ def buildTable(entry):
     else:
         tableRates = [1/len(lootTables)] * len(lootTables)
 
-    tableids = []
+    tableids = [] #I think this bit was redundant? See if it errors.
     loot = []
     for i in lootTables:
-        row = list(cur.execute("SELECT * FROM loottables WHERE loottable = ?", [i]).fetchall()[0])
-        tableids.append(row[0])
-        lootList = [x for x in row[1:] if x != '']
-        loot.append(lootList)
+        tableids.append(i)
+        loot.append([x['entries'] for x in tables['loottables'] if x['tablename'] == i][0])
 
     uniqueStrings = []
     rates = []
@@ -353,16 +333,8 @@ def filterList(loot, compType, reLevel):
     if reLevel == '':
         reLevel = 'Any'
 
-    brands = cur.execute("SELECT * FROM brands").fetchall()
-    componentids = []
-    componentStrings = []
-    componentLevels = []
-    componentData = []
-    for i in brands:
-        componentids.append(i[0])
-        componentStrings.append(i[1])
-        componentLevels.append(i[2])
-        componentData.append(i[3:])
+    componentStrings = [x['name'] for x in tables['brandslist']]
+    componentLevels = [x['relevel'] for x in tables['brandslist']]
     
     reLevel = str(reLevel)
 
@@ -407,8 +379,8 @@ def calculateBestSources(lootLookupWindow, *selection):
 
     #need to map stat names to numbers here.
 
-    componentStats = [x for x in cur.execute("SELECT stat1disp, stat2disp, stat3disp, stat4disp, stat5disp, stat6disp, stat7disp, stat8disp FROM component WHERE type = ?", [component]).fetchall()[0] if x!= '']
-    tails = [int(x) for x in cur.execute("SELECT stat1re, stat2re, stat3re, stat4re, stat5re, stat6re, stat7re, stat8re FROM component WHERE type = ?", [component]).fetchall()[0] if x!= '']
+    componentStats = [x['statdisp'] for x in tables['componentstats'] if x['comptype'] == component][0]
+    tails = [[int(y) for y in x['tail']] for x in tables['componentstats'] if x['comptype'] == component][0]
 
     if component != 'Armor':
         componentStats = ['A/HP:'] + componentStats
@@ -420,10 +392,10 @@ def calculateBestSources(lootLookupWindow, *selection):
 
     tail = tails[statIndex]
 
-    compList = cur.execute("SELECT * FROM brands WHERE relevel = ?", [reLevel]).fetchall()
-    brands = [x[0] for x in compList]
-    means = [float(x[4 + 2 * statIndex]) for x in compList]
-    mods = [float(x[5 + 2 * statIndex]) for x in compList]
+    compList = [x for x in tables['brandslist'] if x['relevel'] == reLevel]
+    brands = [x['path'] for x in compList]
+    means = [tryFloat(x['statmeans'][statIndex]) for x in compList]
+    mods = [tryFloat(x['statmods'][statIndex]) for x in compList]
     rarity = []
     for i in range(0,len(means)):
         stdev = means[i] * mods[i] / 2
@@ -433,7 +405,7 @@ def calculateBestSources(lootLookupWindow, *selection):
     if tail == 1:
         rarity = [1-x for x in rarity]
 
-    brandNames = [x[1] for x in compList]
+    brandNames = [x['name'] for x in compList]
     brandOdds = [[x, rarity[brandNames.index(x)]] for x in brandNames]
 
     #Step 1 done, onto step 2
@@ -444,37 +416,37 @@ def calculateBestSources(lootLookupWindow, *selection):
     #With the final density in hand for each brand, multiply by the stat rarity for that brand and sum to get the drop chance for that ship
     #order ship list by drop chance
 
-    lootTables = cur.execute("SELECT * FROM loottables").fetchall()
+    tableNames = [x['tablename'] for x in tables['loottables']]
+    lootTableEntries = [x['entries'] for x in tables['loottables']]
+    
     density = []
-    for i in lootTables:
+
+    for i in range(len(tableNames)):
         brandDensity = []
         for j in brands:
-            table = [x for x in i if x != '']
-            if table[0] == 'equipment_convoy_standard':
+            table = lootTableEntries[i]
+            if tableNames[i] == 'equipment_convoy_standard':
                 kashParts, kashRates = constructConvoyStandardTable()
                 try:
                     tableDensity = float(kashRates[kashParts.index(j)])
                 except:
                     tableDensity = 0
             else:
-                if len(table) == 1:
+                if len(table) == 0:
                     tableDensity = 0
                 else:
-                    tableDensity = table[1:].count(j)/len(table[1:])
+                    tableDensity = table.count(j)/len(table)
             brandDensity.append(tableDensity)
         density.append(brandDensity)
 
-    tableNames = [x[0] for x in lootTables]
-
-    groups = cur.execute("SELECT * FROM lootgroups").fetchall()
-
-    groupNames = [x[0] for x in groups]
+    groupNames = [x['groupname'] for x in tables['lootgroups']]
+    groupEntries = [x['grouptables'] for x in tables['lootgroups']]
 
     groupedDensity = []
-    for i in groups:
-        subTables = [x for x in i[1:] if x != '']
-        if 'convoy' in i[0]:
-            tier = int(i[0][-1])
+
+    for i in range(len(groupNames)):
+        if 'convoy' in groupNames[i]:
+            tier = int(groupNames[i][-1])
             standardRate = (60 - 5*tier)/100
             rareRate = (12 + 5*tier)/100
             rewardRate = 0.15
@@ -482,45 +454,45 @@ def calculateBestSources(lootLookupWindow, *selection):
             flightPlanRate = 0.05
             schemRate = 0.08
             tableRates = [rareRate, rewardRate, standardRate, decoRate, flightPlanRate, schemRate]
-        elif 'gcw2_crate' in i[0]:
+        elif 'gcw2_crate' in groupNames[i]:
             standardRate = 0.35
             rareRate = 0.65
             tableRates = [standardRate, rareRate]
-        elif 'beacon' in i[0]:
-            pCount = int(i[0][-1])
+        elif 'beacon' in groupNames[i]:
+            pCount = int(groupNames[i][-1])
             grpMod = int(pCount*4)
             standardRate = 0.7-grpMod/100 #This shit needs to be updated soon once I get some more comprehensive data on how fastKillMod is working. This is a *stopgap* estimation.
             rewardRate = 0.1
             rareRate = ((100-(pCount**2)/15) - (80-grpMod))/100
             tableRates = [standardRate, rewardRate, rareRate]
         else:
-            tableRates = [1/len(subTables)] * len(subTables)
+            tableRates = [1/len(groupEntries[i])] * len(groupEntries[i])
 
         groupDensity = [0] * len(brands)
-        for j in subTables:
+        for j in groupEntries[i]:
             for k in tableNames:
                 if j == k:
                     addedDensity = density[tableNames.index(k)]
-                    for l in range(0,len(brands)):
-                        groupDensity[l] += addedDensity[l] * tableRates[subTables.index(j)]
-                
+                    for l in range(len(brands)):
+                        groupDensity[l] += addedDensity[l] * tableRates[groupEntries[i].index(j)]
+
         groupedDensity.append(groupDensity)
 
-    ships = cur.execute("SELECT * FROM npcships").fetchall()
+    shipUnids = [x['unid'] for x in tables['shiptable']]
+    shipNames = [x['name'] for x in tables['shiptable']]
+    shipDropRates = [tryFloat(x['dropcount']) * tryFloat(x['droprate']) for x in tables['shiptable']]
+    shipGroups = [x['lootgroup'] for x in tables['shiptable']]
 
     shipsTable = []
     densityList = []
-    for i in ships:
-        dropRate = float(i[2]) * float(i[3])
-        shipDensity = [x * dropRate for x in groupedDensity[groupNames.index(i[4])]]
-        shipRarity = sum([shipDensity[x] * rarity[x] for x in range(0,len(brands))])
-        # if any(x in i[1] for x in specialSources):
-        #     newLine = [i[1], shipRarity]
-        # else:
-        newLine = [i[1] + ' [' + i[0] + ']', shipRarity]
+    for i in range(len(shipUnids)):
+        dropRate = shipDropRates[i]
+        shipDensity = [x * dropRate for x in groupedDensity[groupNames.index(shipGroups[i])]]
+        shipRarity = sum([shipDensity[x] * rarity[x] for x in range(len(brands))])
+        newLine = [shipNames[i] + ' [' + shipUnids[i] + ']', shipRarity]
         if shipRarity >= 10 ** -8:
             shipsTable.append(newLine)
-            densityList.append([i[1], shipDensity])
+            densityList.append((shipNames[i], shipDensity))
 
     shipsTable = sorted(shipsTable,key=operator.itemgetter(1), reverse=True)
     for i in shipsTable:
@@ -602,21 +574,21 @@ def getShipInfo(selection):
 
     selectionSplit = selection.split('[')[1].split(']')[0]
 
-    shipType = cur.execute("SELECT shiptype FROM npcships WHERE type = ?",[selectionSplit]).fetchall()[0][0]
+    shipType = [x['shiptype'] for x in tables['shiptable'] if x['unid'] == selectionSplit][0]
     if shipType == '':
         alert('Alert',["Sorry, I don't have data available for this ship type.","It's most likely either a Legends exclusive or a non-ship entry in the list."],[],5)
         return
     try:
-        shipData = list(cur.execute("SELECT * FROM shiptypes WHERE name = ?",[shipType]).fetchall()[0])
+        shipData = [x for x in tables['shiptypes'] if x['shiptype'] == shipType][0]['shipstats']
     except:
         shipType = shipType.split('_tier')[0][:-4] + '_tier' + shipType[-1]
-        shipData = list(cur.execute("SELECT * FROM shiptypes WHERE name = ?",[shipType]).fetchall()[0])
+        shipData = [x for x in tables['shiptypes'] if x['shiptype'] == shipType][0]['shipstats']
 
-    for i in range(len(shipData)):
-        if tryFloat(shipData[i]) != 0 and tryFloat(shipData[i])%0.01 == 0:
-            shipData[i] = str(round(tryFloat(shipData[i]),1))
+    shipData = [x if x != ' ' else '' for x in shipData] #Needed to pad the csv with spaces since json.dumps excludes blanks. This reverts that for this list.
 
-    columnGroupings = [[1], [6,8], [7,9], [10], [11], [3,2], [5,4], [13,12], [15,14], [17,16], [19,18], [21,20], [23,22]]
+    headers = ['Chassis HP:','Shield Front HP:','Shield Back HP:','Armor Front HP','Armor Back HP:','Reactor A/HP:','Engine A/HP:','Capacitor A/HP:','Booster A/HP:','Droid Interface A/HP:','Bridge A/HP:','Hangar A/HP:','Targeting Station A/HP:']
+
+    columnGroupings = [[1], [21,27], [22,28], [32], [35], [5,4], [8,7], [38,37], [43,42], [51,50], [54,53], [57,56], [60,59]]
     headers = ['Chassis HP:','Shield Front HP:','Shield Back HP:','Armor Front HP','Armor Back HP:','Reactor A/HP:','Engine A/HP:','Capacitor A/HP:','Booster A/HP:','Droid Interface A/HP:','Bridge A/HP:','Hangar A/HP:','Targeting Station A/HP:']
 
     dataFrame1 = []
@@ -626,7 +598,7 @@ def getShipInfo(selection):
         if shipData[columnGroupings[i][0]] not in [0, '']:
             dataFrame1.append([sg.Push(),sg.Text(headers[i],font=baseFont,p=0)])
             if len(columnGroupings[i]) == 2 and shipData[columnGroupings[i][1]] not in [0, '']:
-                dataFrame2.append([sg.Text(shipData[columnGroupings[i][0]] + ' / ' + shipData[columnGroupings[i][1]],font=baseFont,p=0),sg.Push()])
+                dataFrame2.append([sg.Text(str(shipData[columnGroupings[i][0]]) + ' / ' + str(shipData[columnGroupings[i][1]]),font=baseFont,p=0),sg.Push()])
             else:
                 dataFrame2.append([sg.Text(shipData[columnGroupings[i][0]],font=baseFont,p=0),sg.Push()])
 
@@ -635,23 +607,23 @@ def getShipInfo(selection):
 
     for i in range(0,8):
         if i%2 == 0:
-            weaponType1 = shipData[24 + 9*i]
-            weaponHP1 = tryFloat(shipData[25 + 9*i])
-            weaponArmor1 = tryFloat(shipData[26 + 9*i])
-            weaponRefire1 = tryFloat(shipData[27 + 9*i])
-            weaponMin1 = tryFloat(shipData[28 + 9*i])
-            weaponMax1 = tryFloat(shipData[29 + 9*i])
-            weaponVsS1 = tryFloat(shipData[30 + 9*i])
-            weaponVsA1 = tryFloat(shipData[31 + 9*i])
+            weaponType1 = shipData[61 + 11*i]
+            weaponHP1 = tryFloat(shipData[62 + 11*i])
+            weaponArmor1 = tryFloat(shipData[63 + 11*i])
+            weaponRefire1 = tryFloat(shipData[64 + 11*i])
+            weaponMin1 = tryFloat(shipData[65 + 11*i])
+            weaponMax1 = tryFloat(shipData[66 + 11*i])
+            weaponVsS1 = tryFloat(shipData[67 + 11*i])
+            weaponVsA1 = tryFloat(shipData[68 + 11*i])
 
-            weaponType2 = shipData[24 + 9*(i+1)]
-            weaponHP2 = tryFloat(shipData[25 + 9*(i+1)])
-            weaponArmor2 = tryFloat(shipData[26 + 9*(i+1)])
-            weaponRefire2 = tryFloat(shipData[27 + 9*(i+1)])
-            weaponMin2 = tryFloat(shipData[28 + 9*(i+1)])
-            weaponMax2 = tryFloat(shipData[29 + 9*(i+1)])
-            weaponVsS2 = tryFloat(shipData[30 + 9*(i+1)])
-            weaponVsA2 = tryFloat(shipData[31 + 9*(i+1)])
+            weaponType2 = shipData[61 + 11*(i+1)]
+            weaponHP2 = tryFloat(shipData[62 + 11*(i+1)])
+            weaponArmor2 = tryFloat(shipData[63 + 11*(i+1)])
+            weaponRefire2 = tryFloat(shipData[64 + 11*(i+1)])
+            weaponMin2 = tryFloat(shipData[65 + 11*(i+1)])
+            weaponMax2 = tryFloat(shipData[66 + 11*(i+1)])
+            weaponVsS2 = tryFloat(shipData[67 + 11*(i+1)])
+            weaponVsA2 = tryFloat(shipData[68 + 11*(i+1)])
 
             dpShot1 = round((weaponMin1 + weaponMax1)/2 * (2 * weaponVsS1 + 2 * weaponVsS1 * weaponVsA1 + 1)/5,1)
             dpShot2 = round((weaponMin2 + weaponMax2)/2 * (2 * weaponVsS2 + 2 * weaponVsS2 * weaponVsA2 + 1)/5,1)
@@ -659,7 +631,7 @@ def getShipInfo(selection):
             left = []
             right = []
 
-            if weaponType1 != '':
+            if weaponType1 not in '':
                 left += [
                     [sg.Text("Weapon " + str(i) + " Type:",font=baseFont,p=0),sg.Push()],
                     [sg.Text("Weapon " + str(i) + " A/HP:",font=baseFont,p=0),sg.Push()],
@@ -744,32 +716,25 @@ def generateDropRateChart(lootLookupWindow):
     value = tryFloat(values['inputvalue'])
     count = values['tokenskills']
 
-    brands = cur.execute("SELECT * FROM brands").fetchall()
-    componentids = []
-    componentStrings = []
-    componentLevels = []
-    componentData = []
-    for i in brands:
-        componentids.append(i[0])
-        componentStrings.append(i[1])
-        componentLevels.append(i[2])
-        componentData.append(i[3:])
+    componentids = [x['path'] for x in tables['brandslist']]
+    componentStrings = [x['name'] for x in tables['brandslist']]
+    componentLevels = [x['relevel'] for x in tables['brandslist']]
 
-    npcShips = cur.execute("SELECT * FROM npcships").fetchall()
+    npcShips = [x for x in tables['shiptable']]
     ships = []
     shipids = []
     shipStrings = []
     rates = []
     groups = []
     for i in npcShips:
-        shipids.append(i[0])
-        ships.append(i[1])
+        shipids.append(i['unid'])
+        ships.append(i['name'])
         # if any(x in i[1] for x in specialSources):
         #     shipStrings.append(i[1])
         # else:
-        shipStrings.append(i[1] + ' [' + i[0] + ']')
-        rates.append(tryFloat(i[2]) * tryFloat(i[3]))
-        groups.append(i[4])
+        shipStrings.append(i['name'] + ' [' + i['unid'] + ']')
+        rates.append(tryFloat(i['dropcount']) * tryFloat(i['droprate']))
+        groups.append(i['lootgroup'])
 
     x = []
     y = []
@@ -788,21 +753,16 @@ def generateDropRateChart(lootLookupWindow):
 
         tableValues = [[x, lootRates[uniques.index(x)]] for x in tableLoot]
 
-        compStats = [x[:-1] for x in list(cur.execute("SELECT stat1disp, stat2disp, stat3disp, stat4disp, stat5disp, stat6disp, stat7disp, stat8disp FROM component WHERE type = ?", [values['componentselect']]).fetchall()[0])]
+        compStats = [y[:-1] for y in [x['statdisp'] for x in tables['componentstats'] if x['comptype'] == values['componentselect']][0]]
         if values['componentselect'] != 'Armor':
             compStats = ['A/HP'] + compStats
 
         index = compStats.index(stat)
         level = values['componentselect'][0] + str(values['relevelselect'])[-1]
-        means = []
-        mods = []
-        for i in tableValues:
-            entry = i[0]
-            compData = componentData[componentStrings.index(entry)]
-            means.append(tryFloat(compData[1 + 2 * index]))
-            mods.append(tryFloat(compData[2 + 2 * index]))
+        means = [tryFloat(x['statmeans'][index]) for x in tables['brandslist'] if x['relevel'] == level]
+        mods = [tryFloat(x['statmods'][index]) for x in tables['brandslist'] if x['relevel'] == level]
 
-        tails = list(cur.execute('SELECT stat1re, stat2re, stat3re, stat4re, stat5re, stat6re, stat7re, stat8re FROM component WHERE type = ?',[values['componentselect']]).fetchall()[0])
+        tails = [[int(y) for y in x['tail']] for x in tables['componentstats'] if x['comptype'] == values['componentselect']][0]
         if values['componentselect'] != 'Armor':
             tails = [1] + tails
         tail = int(tails[index])
@@ -893,50 +853,23 @@ def generateDropRateChart(lootLookupWindow):
 
 def lootLookup():
 
-    brands = cur.execute("SELECT * FROM brands").fetchall()
-    componentids = []
-    componentStrings = []
-    componentLevels = []
-    componentData = []
-    for i in brands:
-        componentids.append(i[0])
-        componentStrings.append(i[1])
-        componentLevels.append(i[2])
-        componentData.append(i[3:])
+    componentids = [x['path'] for x in tables['brandslist']]
+    componentStrings = [x['name'] for x in tables['brandslist']]
+    componentLevels = [x['relevel'] for x in tables['brandslist']]
 
-    npcShips = cur.execute("SELECT * FROM npcships").fetchall()
-    ships = []
-    shipids = []
-    shipStrings = []
-    rates = []
-    dropCounts = []
-    dropRates = []
-    groups = []
-    for i in npcShips:
-        shipids.append(i[0])
-        ships.append(i[1])
-        # if any(x in i[1] for x in specialSources):
-        #     shipStrings.append(i[1])
-        # else:
-        shipStrings.append(i[1] + ' [' + i[0] + ']') 
-        rates.append(tryFloat(i[2]) * tryFloat(i[3]))
-        dropCounts.append(tryFloat(i[2]))
-        dropRates.append(tryFloat(i[3]))
-        groups.append(i[4])
-    
-    lootGroups = cur.execute("SELECT * FROM lootgroups").fetchall()
-    groupids = []
-    groupTables = []
-    for i in lootGroups:
-        groupids.append(i[0])
-        groupTables.append(i[1:])
+    shipids = [x['unid'] for x in tables['shiptable']]
+    ships = [x['name'] for x in tables['shiptable']]
+    shipStrings = [x['name'] + ' [' + x['unid'] + ']' for x in tables['shiptable']]
+    rates = [tryFloat(x['dropcount']) * tryFloat(x['droprate']) for x in tables['shiptable']]
+    dropCounts = [tryFloat(x['dropcount']) for x in tables['shiptable']]
+    dropRates = [tryFloat(x['droprate']) for x in tables['shiptable']]
+    groups = [x['lootgroup'] for x in tables['shiptable']]
 
-    lootTables = cur.execute("SELECT * FROM loottables").fetchall()
-    tableids = []
-    loot = []
-    for i in lootTables:
-        tableids.append(i[0])
-        loot.append(i[1:])
+    groupids = [x['groupname'] for x in tables['lootgroups']]
+    groupTables = [x['grouptables'] for x in tables['lootgroups']]
+
+    tableids = [x['tablename'] for x in tables['loottables']]
+    loot = [x['entries'] for x in tables['loottables']]
 
     selectLeft1 = [
         [sg.Push(),sg.Text("Component Type:",font=baseFont,p=1,key='filtercomptext')],
@@ -1220,7 +1153,7 @@ def lootLookup():
                     lootLookupWindow['relevelselect'].update(value=values['relevelselect'],values=[1,2,3,4,5,6,7,8,9,10])
 
                 if values['componentselect'] not in ['Any',''] and values['relevelselect'] not in ['Any','']:
-                    compStats = [x[:-1] for x in list(cur.execute("SELECT stat1disp, stat2disp, stat3disp, stat4disp, stat5disp, stat6disp, stat7disp, stat8disp FROM component WHERE type = ?", [values['componentselect']]).fetchall()[0])]
+                    compStats = [[y[:-1] for y in x['statdisp']] for x in tables['componentstats'] if x['comptype'] == values['componentselect']][0]
                     if values['componentselect'] != 'Armor':
                         compStats = ['A/HP'] + compStats
                     lootLookupWindow['inputstattext'].update('Stat:',visible=True)
@@ -1273,7 +1206,7 @@ def lootLookup():
                     lootLookupWindow['relevelselect'].update(value=values['relevelselect'],values=[1,2,3,4,5,6,7,8,9,10])
 
                 if values['componentselect'] not in ['Any',''] and values['relevelselect'] not in ['Any','']:
-                    compStats = [x[:-1] for x in list(cur.execute("SELECT stat1disp, stat2disp, stat3disp, stat4disp, stat5disp, stat6disp, stat7disp, stat8disp FROM component WHERE type = ?", [values['componentselect']]).fetchall()[0])]
+                    compStats = [[y[:-1] for y in x['statdisp']] for x in tables['componentstats'] if x['comptype'] == values['componentselect']][0]
                     if values['componentselect'] != 'Armor':
                         compStats = ['A/HP'] + compStats
                     lootLookupWindow['inputstattext'].update('Stat:',visible=True)
@@ -1311,7 +1244,7 @@ def lootLookup():
                 lootLookupWindow['loottable'].update(values = tableValues)
             else:
                 if values['componentselect'] not in ['Any',''] and values['relevelselect'] not in ['Any','']:
-                    compStats = [x[:-1] for x in list(cur.execute("SELECT stat1disp, stat2disp, stat3disp, stat4disp, stat5disp, stat6disp, stat7disp, stat8disp FROM component WHERE type = ?", [values['componentselect']]).fetchall()[0])]
+                    compStats = [[y[:-1] for y in x['statdisp']] for x in tables['componentstats'] if x['comptype'] == values['componentselect']][0]
                     if values['componentselect'] != 'Armor':
                         compStats = ['A/HP'] + compStats
                     lootLookupWindow['inputstattext'].update('Stat:',visible=True)
@@ -1577,7 +1510,7 @@ def lootLookup():
                         if values['inputstat'] != '' and values['inputvalue'] != '':
                             reMults = [0.02,0.03,0.03,0.04,0.04,0.05,0.05,0.06,0.07,0.07]
                             reMult = reMults[int(values['relevelselect'])-1]
-                            tails = [int(x) for x in cur.execute("SELECT stat1re, stat2re, stat3re, stat4re, stat5re, stat6re, stat7re, stat8re FROM component WHERE type = ?", [values['componentselect']]).fetchall()[0] if x!= '']
+                            tails = [[int(y) for y in x['tail']] for x in tables['componentstats'] if x['comptype'] == values['componentselect']][0]
                             if values['componentselect'] != 'Armor':
                                 tails = [1] + tails
                             tail = tails[compStats.index(values['inputstat'])]
@@ -1616,7 +1549,7 @@ def lootLookup():
                     if values['inputstat'] != '' and values['inputvalue'] != '':
                         reMults = [0.02,0.03,0.03,0.04,0.04,0.05,0.05,0.06,0.07,0.07]
                         reMult = reMults[int(values['relevelselect'])-1]
-                        tails = [int(x) for x in cur.execute("SELECT stat1re, stat2re, stat3re, stat4re, stat5re, stat6re, stat7re, stat8re FROM component WHERE type = ?", [values['componentselect']]).fetchall()[0] if x!= '']
+                        tails = [[int(y) for y in x['tail']] for x in tables['componentstats'] if x['comptype'] == values['componentselect']][0]
                         if values['componentselect'] != 'Armor':
                             tails = [1] + tails
                         tail = tails[compStats.index(values['inputstat'])]
@@ -1739,6 +1672,5 @@ def lootLookup():
         oldMode = values['modeselect'] #sets the current mode after each event loop for the purposes of only triggering mode change events when the mode actually changes
 
     lootLookupWindow.close()
-    tables.close()
 
 #lootLookup()

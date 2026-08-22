@@ -3,6 +3,8 @@ import os
 
 from csv import reader as csvreader
 
+versionID = 1
+
 def tryInt(x):
     try:
         if x%0 > 0:
@@ -57,6 +59,8 @@ def buildTablesJSON():
     dir = os.path.join(os.path.dirname(__file__)) + '\\'
 
     compiledData = {}
+
+    compiledData.update({'version': versionID})
 
     with open(os.path.abspath(dir + 'jsonConfig.csv')) as config:
         headers = []

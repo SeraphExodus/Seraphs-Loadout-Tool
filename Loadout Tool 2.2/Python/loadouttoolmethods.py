@@ -502,7 +502,7 @@ def updateDrainTotals(window):
                 elif unid == 'capacitor':
                     drain /= overloadEffects[2][0]
                     reactorGenRemaining -= drain
-                elif 'slot' in unid:
+                elif 'slot' in unid: ### FIX THIS, IT'S NOT CORRECT - drain from cm is only 1/10th if it's last in sequence, otherwise it pulls full power before passing leftover gen to later slots (gunship issue)
                     drain /= overloadEffects[3][0]
                     header = unidToHeader(unid,chassisType)
                     if 'Countermeasure' in header:

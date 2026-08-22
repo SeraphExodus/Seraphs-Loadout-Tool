@@ -273,6 +273,8 @@ S0 Unicorn,Shield,1050,34000,4400,26,,,,
 "Mark I Blaster, Efficiency Booster",Weapon,1300,833,281.2,378.4,0.66,0.66,17.4,0.35
 "Experimental Borstel, Speed Limiter",Weapon,1730,24377.5,2243.8,3741,0.67,0.67,11,0.41
 "Nova Prototype Ion Cannon, Speed Limiter",Weapon,1730,40317.3,2829.5,5092,0.79,0.75,20.5,0.4
+KSE Repeater Cannon,Weapon,1961,37591,850,1250,1,1,8,0.03
+Nova Orion Industries Repeater Cannon,Weapon,1961,250000,850,1250,1,1,8,0.03
 "Null-Bolt Blaster, Quick Shot",Weapon,2850,250000,3461,6600,0.74,0.74,32.5,0.25
 "Null-Bolt Blaster, Speed Limiter",Weapon,2850,250000,3300,6000,0.74,0.74,19.5,0.39
 "Elite Gauss Cannon, Quick Shot",Weapon,2850,250000,3461,6000,0.77,0.72,32.5,0.25

@@ -1,6 +1,7 @@
 import ctypes
 import FreeSimpleGUI as sg
 import jellyfish
+import json
 import multiprocessing
 import multiprocessing.popen_spawn_win32 as forking
 import numpy as np
@@ -24,48 +25,6 @@ versionOverride = False #Set true to omit version checking for test releases. Se
 
 throttleProfileCaptureMode = False #Set to false for normal screencapping, true to only capture the throttle profile with wiki background color for updating wiki pages
 
-### Extra code in order to enable multiprocessing support in pyinstaller ###
-
-class _Popen(forking.Popen):
-    def __init__(self, *args, **kw):
-        if hasattr(sys, 'frozen'):
-            # We have to set original _MEIPASS2 value from sys._MEIPASS
-            # to get --onefile mode working.
-            os.putenv('_MEIPASS2', sys._MEIPASS)
-        try:
-            super(_Popen, self).__init__(*args, **kw)
-        finally:
-            if hasattr(sys, 'frozen'):
-                # On some platforms (e.g. AIX) 'os.unsetenv()' is not
-                # available. In those cases we cannot delete the variable
-                # but only set it to the empty string. The bootloader
-                # can handle this case.
-                if hasattr(os, 'unsetenv'):
-                    os.unsetenv('_MEIPASS2')
-                else:
-                    os.putenv('_MEIPASS2', '')
-
-class Process(multiprocessing.Process):
-    _Popen = _Popen
-
-# # ...
-
-# if __name__ == '__main__':
-#     # On Windows calling this function is necessary.
-#     multiprocessing.freeze_support()
-
-#     # Use your new Process class instead of multiprocessing.Process
-
-###Release Procedure:
-###Update VERSION NUMBER FIRST in both this file and on the gist.
-###Generate .exe
-###Upload new version
-###Update gist with new download link
-
-currentVersion = "2.17.1"
-
-versionURL = "https://gist.github.com/SeraphExodus/8ae0b6980e3780e8782847dbe76b0bf5/raw"
-
 fontList = sg.Text.fonts_installed_list()
 
 displayScaleFactor = ctypes.windll.shcore.GetScaleFactorForDevice(0)/100
@@ -77,12 +36,17 @@ if scaleFactor == 1:
 else:
     fontFace = ''
 
-headerFont = ("Calibri", int(12*scaleFactor), fontFace)
-summaryFont = ("Calibri", int(11*scaleFactor), fontFace)
-summaryFontStats = ("Calibri", int(11*scaleFactor))
-baseFont = ("Calibri", int(10*scaleFactor), fontFace)
-baseFontStats = ("Calibri", int(10*scaleFactor), fontFace)
-buttonFont = ("Calibri", int(13*scaleFactor), fontFace)
+if throttleProfileCaptureMode:
+    applicationFont = 'Roboto'
+else:
+    applicationFont = 'Calibri'
+
+headerFont = (applicationFont, int(12*scaleFactor), fontFace)
+summaryFont = (applicationFont, int(11*scaleFactor), fontFace)
+summaryFontStats = (applicationFont, int(11*scaleFactor))
+baseFont = (applicationFont, int(10*scaleFactor), fontFace)
+baseFontStats = (applicationFont, int(10*scaleFactor), fontFace)
+buttonFont = (applicationFont, int(13*scaleFactor), fontFace)
 fontPadding = 0
 elementPadding = int(4*scaleFactor)
 bgColor = '#202225'
@@ -116,6 +80,38 @@ else:
 sg.theme_add_new('Discord_Dark', theme_definition)
 
 sg.theme('Discord_Dark')
+
+### Extra code in order to enable multiprocessing support in pyinstaller ###
+
+class _Popen(forking.Popen):
+    def __init__(self, *args, **kw):
+        if hasattr(sys, 'frozen'):
+            # We have to set original _MEIPASS2 value from sys._MEIPASS
+            # to get --onefile mode working.
+            os.putenv('_MEIPASS2', sys._MEIPASS)
+        try:
+            super(_Popen, self).__init__(*args, **kw)
+        finally:
+            if hasattr(sys, 'frozen'):
+                # On some platforms (e.g. AIX) 'os.unsetenv()' is not
+                # available. In those cases we cannot delete the variable
+                # but only set it to the empty string. The bootloader
+                # can handle this case.
+                if hasattr(os, 'unsetenv'):
+                    os.unsetenv('_MEIPASS2')
+                else:
+                    os.putenv('_MEIPASS2', '')
+
+class Process(multiprocessing.Process):
+    _Popen = _Popen
+
+# # ...
+
+# if __name__ == '__main__':
+#     # On Windows calling this function is necessary.
+#     multiprocessing.freeze_support()
+
+#     # Use your new Process class instead of multiprocessing.Process
 
 def alert(headerText, textLines, buttons, timeout, *settings): #define alert so we can use it for the db setup stuff if needed
     Layout = []
@@ -178,6 +174,65 @@ def alert(headerText, textLines, buttons, timeout, *settings): #define alert so 
         if event in buttons or event == sg.WIN_CLOSED:
             alertWindow.close()
             return event
+
+###Release Procedure:
+###Update VERSION NUMBER FIRST in both this file and on the gist.
+###Generate .exe
+###Upload new version
+###Update gist with new download link
+
+currentVersion = "2.18.0"
+
+versionURL = "https://gist.github.com/SeraphExodus/8ae0b6980e3780e8782847dbe76b0bf5/raw"
+
+dataURL = "https://gist.githubusercontent.com/SeraphExodus/3f7c877ff39cc8d93db93720c167450f/raw/data.json"
+
+dataDir = os.getenv('APPDATA') + "\\Seraph's Loadout Tool"
+
+#Attempt to get table data from gist. Then load local data. If gist data differs from local data, overwrite local data with gist data. If unable to get web data, use local data. If local data isn't available, unpack data included in exe.
+
+try:
+    webData = json.loads(get(dataURL).text)
+    webVersion = webData['version']
+except:
+    webData = None
+    webVersion = 0
+
+try:
+    with open(dataDir + '\\' + 'data.json', 'r') as f:
+        localData = json.load(f)
+        localVersion = localData['version']
+except:
+    localData = None
+    localVersion = 0
+
+if webData != localData and webData != None: #Case one - newer data found on gist. Update local and proceed with new data.
+    if webVersion >= localVersion:
+        with open(dataDir + '\\' + 'data.json', 'w') as f:
+            json.dump(webData,f)
+            tableData = webData
+            print('new data found on gist, updated local data')
+    else:
+        print('local data is more recent than remote data; proceeding using local data.')
+        tableData = localData
+elif webData == None and localData != None: #Case two - unable to obtain data from gist but local data found
+    tableData = localData
+    print('unable to access remote data; using existing local data.')
+elif webData == None and localData == None: #Case three - unable to obtain web data and local data not found; unpack data from exe
+    try:
+        inclData = os.path.abspath(os.path.join(os.path.dirname(__file__), 'data.json'))
+        with open(inclData, 'r') as f:
+            inclData = json.load(f)
+        with open(dataDir + '\\' + 'data.json', 'w') as f:
+            json.dump(inclData,f)
+        tableData = inclData
+        print('unable to obtain web data and local data not found, proceeding using included data')
+    except:
+        print('data could not be loaded. exiting.')
+        sys.exit()
+else: #Case four - local and web data is identical, just use the local version.
+    tableData = localData
+    print('local data matches web data, proceeding using local data.')
 
 ### Updates deprecated file structure and sets up saved data storage if needed ###
 
@@ -254,7 +309,7 @@ except:
         alert('Fatal Error',['Fatal error when attempting to create or relocate savedata.db. Unable to find destination folder','If you are seeing this message, please contact me ASAP - Seraph'],['Okay'],0)
     sys.exit()
 
-if os.path.exists('Data\\tables.db'): #Clears tables.db as it will now be included in the exe.
+if os.path.exists('Data\\tables.db'): #Cleans up old data and stuff that isn't used in this version
     os.remove('Data\\tables.db')
     empty = True
     for x in os.scandir('Data'): #Deletes the Data folder if it's empty (which by now it should be assuming the user didn't put anything else in there)
@@ -263,20 +318,14 @@ if os.path.exists('Data\\tables.db'): #Clears tables.db as it will now be includ
     if empty:
         os.removedirs("Data")
 
-#Connect to databases
-
 global tables
-global cur
 global compdb
 global cur2
 
-tables = sqlite3.connect("file:"+os.path.abspath(os.path.join(os.path.dirname(__file__), 'tables.db'))+"?mode=ro", uri=True)
-cur = tables.cursor()
+tables = tableData
 
 compdb = sqlite3.connect('file:'+ dataDir +'\\savedata.db?mode=rw', uri=True)
 cur2 = compdb.cursor()
-
-
 
 ###This is a code snippet I executed for Karnov on 7 Mar 2026 to repair his savedata after component names with single apostrophes were written into the loadout list with doubled-up apostrophes, causing a crash when attempting to load them
 
@@ -289,8 +338,6 @@ cur2 = compdb.cursor()
 
 # compdb.commit()
 # compdb.close()
-
-
 
 ##Import utilities at this point once we've got the db paths confirmed
 #Yes, I know this is some sort of crime against python but sue me.
@@ -591,9 +638,7 @@ def updateParts(*arg):
 
     try:
         chassis = arg[0]
-        slots = []
-        for i in range(1, 9):
-            slots.append(cur.execute("SELECT slot" + str(i) + " FROM chassis WHERE name = ?", [chassis]).fetchall()[0][0])
+        slots = [x['weaponslots'] for x in tables['chassis'] if x['name'] == chassis][0]
         for i in range(0, 8):
             holderList = []
             if "Weapon" in slots[i]:
@@ -622,7 +667,7 @@ def verifyEntries(window):
     chassis = window['chassistype'].get()
 
     if not chassis == '':
-        headers = list(cur.execute("SELECT * FROM chassis WHERE name = ?", [chassis]).fetchall()[0][2:10])
+        headers = [x['weaponslots'] for x in tables['chassis'] if x['name'] == chassis][0]
     else:
         headers = [''] * 8
 
@@ -773,7 +818,7 @@ def updateDrainStrings(window):
     coLevel = values['capacitoroverchargelevel']
     woLevel = values['weaponoverloadlevel']
 
-    overloads = cur.execute("SELECT name,energyefficiency,genefficiency FROM fcprogram").fetchall()[0:16]
+    overloads = [[x['name'],x['modifiers'][1],x['modifiers'][2]] for x in tables['fcprograms']]
 
     if roLevel == "None":
         roEff = 1
@@ -809,20 +854,20 @@ def updateDrainStrings(window):
         if not poweredComponents[i] == "None" and not poweredComponents[i] == "":
             currentDrain = drains[i]
             if reactorDecrement <= 0:
-                window[boxKeys[i]].update(background_color='#dd0000',text_color="#000000", font=("Calibri", 10))
+                window[boxKeys[i]].update(background_color='#dd0000',text_color="#000000", font=(applicationFont, 10))
                 window[frameKeys[i]].Widget.config(background='#dd0000')
             elif currentDrain > reactorDecrement:
                 if reactorDecrement < 0.1 * currentDrain:
-                    window[boxKeys[i]].update(background_color='#dd0000',text_color="#000000", font=("Calibri", 10))
+                    window[boxKeys[i]].update(background_color='#dd0000',text_color="#000000", font=(applicationFont, 10))
                     window[frameKeys[i]].Widget.config(background='#dd0000')
                 elif i == cmIndex + 5 and cmIndex != 0 and reactorDecrement >= 0.1 * currentDrain:
-                    window[boxKeys[i]].update(background_color='#00cc00',text_color="#000000", font=("Calibri", 10))
+                    window[boxKeys[i]].update(background_color='#00cc00',text_color="#000000", font=(applicationFont, 10))
                     window[frameKeys[i]].Widget.config(background='#00cc00')
                 else:
-                    window[boxKeys[i]].update(background_color='#ffcc00',text_color="#000000", font=("Calibri", 10))
+                    window[boxKeys[i]].update(background_color='#ffcc00',text_color="#000000", font=(applicationFont, 10))
                     window[frameKeys[i]].Widget.config(background='#ffcc00')
             else:
-                window[boxKeys[i]].update(background_color='#00cc00',text_color="#000000", font=("Calibri", 10))
+                window[boxKeys[i]].update(background_color='#00cc00',text_color="#000000", font=(applicationFont, 10))
                 window[frameKeys[i]].Widget.config(background='#00cc00')
 
             if i == cmIndex + 5 and cmIndex != 0:
@@ -853,6 +898,19 @@ def updateDrainStrings(window):
         window['totaldrain'].update("", text_color=textColor)
         window['minimumgen'].update("")
     window.refresh()
+
+def packValues(values):
+
+    values = values[3:]
+
+    packedValues = {}
+    keys = ['frontarmorselection','reararmorselection','boosterselection','capselection','chselection','diselection','engineselection','reactorselection','shieldselection',
+            'slot1selection','slot2selection','slot3selection','slot4selection','slot5selection','slot6selection','slot7selection','slot8selection',
+            'slot1packselection','slot2packselection','slot3packselection','slot4packselection','slot5packselection','slot6packselection','slot7packselection','slot8packselection',
+            'reactoroverloadlevel','engineoverloadlevel','capacitoroverchargelevel','weaponoverloadlevel','shieldadjustsetting']
+    for key in keys:
+        packedValues.update({key:values[keys.index(key)]})
+    return packedValues
 
 def updateDropdowns(lists, window, windowValues, disable, *headers):
 
@@ -909,7 +967,10 @@ def updateDropdowns(lists, window, windowValues, disable, *headers):
 
 def updateSlotHeaders(chassis, window):
 
-    headers = list(cur.execute("SELECT * FROM chassis WHERE name = ?", [chassis]).fetchall()[0][2:10])
+    headers = [x['weaponslots'] for x in tables['chassis'] if x['name'] == chassis][0]
+
+    while len(headers) < 8:
+        headers.append('')
 
     window['slot1header'].update(headers[0])
     window['slot2header'].update(headers[1])
@@ -986,6 +1047,34 @@ def getSlotStats(selection):
 
     return [compType, output]
 
+def refreshLoadout(window, packedValues):
+
+    refreshReactor(window, packedValues['reactorselection'])
+    refreshEngine(window, packedValues['engineselection'])
+    refreshBooster(window, packedValues['boosterselection'])
+    refreshShield(window, packedValues['shieldselection'], packedValues['shieldadjustsetting'])
+    refreshFrontArmor(window, packedValues['frontarmorselection'])
+    refreshRearArmor(window, packedValues['reararmorselection'])
+    refreshDI(window,packedValues['diselection'])
+    refreshCH(window, packedValues['chselection'])
+    refreshCapacitor(window, packedValues['capselection'])
+    compType1 = refreshSlot(window, packedValues['slot1selection'], 1)
+    compType2 = refreshSlot(window, packedValues['slot2selection'], 2)
+    compType3 = refreshSlot(window, packedValues['slot3selection'], 3)
+    compType4 = refreshSlot(window, packedValues['slot4selection'], 4)
+    compType5 = refreshSlot(window, packedValues['slot5selection'], 5)
+    compType6 = refreshSlot(window, packedValues['slot6selection'], 6)
+    compType7 = refreshSlot(window, packedValues['slot7selection'], 7)
+    compType8 = refreshSlot(window, packedValues['slot8selection'], 8)
+    refreshPack(window, packedValues['slot1packselection'], 1, compType1)
+    refreshPack(window, packedValues['slot2packselection'], 2, compType2)
+    refreshPack(window, packedValues['slot3packselection'], 3, compType3)
+    refreshPack(window, packedValues['slot4packselection'], 4, compType4)
+    refreshPack(window, packedValues['slot5packselection'], 5, compType5)
+    refreshPack(window, packedValues['slot6packselection'], 6, compType6)
+    refreshPack(window, packedValues['slot7packselection'], 7, compType7)
+    refreshPack(window, packedValues['slot8packselection'], 8, compType8)
+
 def refreshReactor(window, component):
 
     if type(component) == str and not component == "None" and not component == "":
@@ -1050,7 +1139,7 @@ def refreshShield(window, component, adjust):
     else:
         halves = adjust.split(' - ', 1)
         name = "Shield " + halves[0] + " Adjust - " + halves[1]
-        adjustFrontRatio = tryFloat(cur.execute("SELECT frontshieldratio FROM fcprogram WHERE name = ?", [name]).fetchall()[0][0])
+        adjustFrontRatio = tryFloat([x['modifiers'] for x in tables['fcprograms'] if x['name'] == name][0][7])
 
     if type(component) == str and not component == "None" and not component == "":
         shield = cur2.execute("SELECT * FROM shield WHERE name = ?", [component]).fetchall()[0]
@@ -1191,7 +1280,7 @@ def refreshSlot(window, component, slotID):
 
         [compType, stats] = getSlotStats(component)
         if compType == "Ordnance":
-            multiplier = cur.execute("SELECT multiplier FROM ordnance WHERE type = ?", [stats[2]]).fetchall()[0][0]
+            multiplier = [x['pvemod'] for x in tables['ordnance'] if x['name'] == stats[2]][0]
             window[slot + 'stat1'].update(stats[0])
             window[slot + 'stat2'].update(stats[1])
             window[slot + 'stat3'].update("")
@@ -1273,11 +1362,12 @@ def refreshPack(window, component, slotID, *arg):
                 stats.append(packStats[i])
             except:
                 stats.append("")
+
         try:
-            ordnanceStats = cur.execute("SELECT * FROM ordnance WHERE type = ?", [packStats[4]]).fetchall()[0]
+            ordnanceStats = [x for x in tables['ordnance'] if x['name'] == packStats[4]][0]
             stats[4] = int(tryFloat(stats[2]))
-            stats[2] = "{:.3f}".format(tryFloat(ordnanceStats[2]))
-            stats[3] = "{:.3f}".format(tryFloat(ordnanceStats[3]))
+            stats[2] = "{:.3f}".format(tryFloat(ordnanceStats['vsx'][0]))
+            stats[3] = "{:.3f}".format(tryFloat(ordnanceStats['vsx'][1]))
             window[slot + 'stat3'].update(round(tryFloat(stats[0]),1))
             window[slot + 'stat4'].update(round(tryFloat(stats[1]),1))
             window[slot + 'stat5'].update(stats[2])
@@ -1308,7 +1398,7 @@ def updateOverloadMults(window):
     woLevel = values['weaponoverloadlevel']
     adjust = values['shieldadjustsetting']
 
-    overloads = cur.execute("SELECT name,energyefficiency,genefficiency FROM fcprogram").fetchall()[0:16]
+    overloads = [[x['name'],x['modifiers'][1],x['modifiers'][2]] for x in tables['fcprograms']]
 
     if roLevel == "None":
         roGenEff = 1
@@ -1374,7 +1464,7 @@ def updateOverloadMults(window):
     else:
         halves = adjust.split(' - ', 1)
         name = "Shield " + halves[0] + " Adjust - " + halves[1]
-        adjustFrontRatio = tryFloat(cur.execute("SELECT frontshieldratio FROM fcprogram WHERE name = ?", [name]).fetchall()[0][0])
+        adjustFrontRatio = tryFloat([x['modifiers'][7] for x in tables['fcprograms'] if x['name'] == name][0])
         window['shieldadjustdesc1'].update("Front HP:")
         window['shieldadjustdesc2'].update(str(adjustFrontRatio) + 'x')
         window['shieldadjustdesc3'].update("Back HP:")
@@ -1385,7 +1475,7 @@ def updateOverloadMults(window):
 def doWeaponCalculations(window):
     event, values = window.read(timeout=0)
 
-    overloads = cur.execute("SELECT name,energyefficiency,genefficiency FROM fcprogram").fetchall()[0:16]
+    overloads = [[x['name'],x['modifiers'][1],x['modifiers'][2]] for x in tables['fcprograms']]
     
     coLevel = values['capacitoroverchargelevel']
     woLevel = values['weaponoverloadlevel']
@@ -1404,7 +1494,7 @@ def doWeaponCalculations(window):
     
     chassis = window['chassistype'].get()
     try:
-        headers = list(cur.execute("SELECT * FROM chassis WHERE name = ?", [chassis]).fetchall()[0][2:10])
+        headers = [x['weaponslots'] for x in tables['chassis'] if x['name'] == chassis][0]
     except:
         headers = [''] * 8
     slotKeys = ['slot1selection', 'slot2selection', 'slot3selection', 'slot4selection', 'slot5selection', 'slot6selection', 'slot7selection', 'slot8selection']
@@ -1446,11 +1536,11 @@ def doWeaponCalculations(window):
             if not values[packKeys[i]] == "None" and not values[packKeys[i]] == "":
                 stats = cur2.execute("SELECT * FROM ordnancepack WHERE name = ?", [values[packKeys[i]]]).fetchall()[0]
                 avgDamage = (tryFloat(stats[1]) + tryFloat(stats[2]))/2 * woGenEff
-                typeStats = cur.execute("SELECT * FROM ordnance WHERE type = ?", [stats[4]]).fetchall()[0]
-                vss = tryFloat(typeStats[2])
-                vsa = tryFloat(typeStats[3])
+                typeStats = [x for x in tables['ordnance'] if x['name'] == stats[4]][0]
+                vss = tryFloat(typeStats['vsx'][0])
+                vsa = tryFloat(typeStats['vsx'][1])
                 ordnanceDamage = avgDamage * (2 * vss + 2 * vss * vsa + 1)/5
-                ordnanceDamageListPvE.append(ordnanceDamage * tryFloat(typeStats[1]))
+                ordnanceDamageListPvE.append(ordnanceDamage * tryFloat(typeStats['pvemod']))
                 ordnanceDamageListPvP.append(ordnanceDamage * 0.5)
                 loadedOrdnance.append(headers[i])
 
@@ -1577,21 +1667,21 @@ def doWeaponCalculations(window):
 def doPropulsionCalculations(window):
     event, values = window.read(timeout=0)
 
-    overloads = cur.execute("SELECT name,energyefficiency,genefficiency FROM fcprogram").fetchall()[0:16]
+    overloads = [[x['name'],x['modifiers'][1],x['modifiers'][2]] for x in tables['fcprograms']]
 
     eoLevel = values['engineoverloadlevel']
 
     try:
         chassisName = window['chassistype'].get()
-        chassisData = cur.execute("SELECT * FROM chassis WHERE name = ?", [chassisName]).fetchall()
-        speedMod = tryFloat(chassisData[0][15])
-        speedModFoils = tryFloat(chassisData[0][16])
-        accel = tryFloat(chassisData[0][10])
-        decel = tryFloat(chassisData[0][11])
-        chassisPitch = tryFloat(chassisData[0][12])
-        chassisYaw = tryFloat(chassisData[0][13])
-        chassisRoll = tryFloat(chassisData[0][14])
-        chassisSlide = tryFloat(chassisData[0][20])
+        chassisData = [x for x in tables['chassis'] if x['name'] == chassisName][0]
+        speedMod = tryFloat(chassisData['speedmods'][0])
+        speedModFoils = tryFloat(chassisData['speedmods'][1])
+        accel = tryFloat(chassisData['pyrad'][0])
+        decel = tryFloat(chassisData['pyrad'][1])
+        chassisPitch = tryFloat(chassisData['pyrad'][2])
+        chassisYaw = tryFloat(chassisData['pyrad'][3])
+        chassisRoll = tryFloat(chassisData['pyrad'][4])
+        chassisSlide = tryFloat(chassisData['slide'])
     except:
         return
 
@@ -1795,7 +1885,7 @@ def updateLoadoutPreview(loadout):
     loadoutData = cur2.execute("SELECT * FROM loadout WHERE name = ?",[loadout]).fetchall()[0]
     chassis = loadoutData[1]
     try:
-        headers = list(cur.execute("SELECT * FROM chassis WHERE name = ?", [chassis]).fetchall()[0][2:10])
+        headers = [x['weaponslots'] for x in tables['chassis'] if x['name'] == chassis][0]
         headers = [x + ':' for x in headers if x != '']
         slotText = ["Chassis:", "Mass:", "Reactor:", "Engine:", "Booster:", "Shield:", "Front Armor:", "Rear Armor:", "Droid Interface:", "Cargo Hold:", "Capacitor:"] + headers
         slotText += [''] * (19 - len(slotText))
@@ -1815,8 +1905,8 @@ def updateLoadoutPreview(loadout):
 
 def createLoadout(*editArgs):
 
-    chassisRaw= cur.execute("SELECT name FROM chassis").fetchall()
-    massRaw = cur.execute("SELECT mass FROM chassis").fetchall()
+    chassisRaw = [x['name'] for x in tables['chassis']]
+    massRaw = [x['maxmass'] for x in tables['chassis']]
     chassisList = []
     massList = []
 
@@ -1835,8 +1925,8 @@ def createLoadout(*editArgs):
         oldMass = ''
 
     for i in range(0, len(chassisRaw)):
-        chassisList.append(chassisRaw[i][0])
-        massList.append(massRaw[i][0])
+        chassisList.append(chassisRaw[i])
+        massList.append(massRaw[i])
 
     textColumn = [
         [sg.Push(), sg.Text("Loadout Name:", font=baseFont)],
@@ -1906,7 +1996,7 @@ def createLoadout(*editArgs):
                     selection = oldName #Easier to just adapt the code from the duplication setup
                     loadoutList = [x for x in cur2.execute("SELECT * FROM loadout").fetchall()]
 
-                    chassisData = cur.execute("SELECT * FROM chassis").fetchall()
+                    chassisData = [x for x in tables['chassis']]
 
                     cmList = [x[0] for x in cur2.execute("SELECT name FROM countermeasurelauncher").fetchall()] #Code to handle changing chassis - ensure user is notified if components need to be dropped to fit and map remaining components to new slots in an orderly fashion
                     ordList = [x[0] for x in cur2.execute("SELECT name FROM ordnancelauncher").fetchall()]
@@ -1927,18 +2017,19 @@ def createLoadout(*editArgs):
                             slotCompTypes.append([0])
 
                     newChassis = valueList[1]
-                    newSlots = [x[2:10] for x in chassisData if x[0] == newChassis][0] #important: we don't care about the selection's *slots*, only the types of components that are loaded.
+                    newSlots = [x['weaponslots'] for x in chassisData if x['name'] == newChassis][0] #important: we don't care about the selection's *slots*, only the types of components that are loaded.
                     slotCompatibility = []
-                    for i in range(0,8):
+                    for i in range(9):
                         currSlot = []
-                        if 'CM' in newSlots[i] or 'Countermeasures' in newSlots[i]:
-                            currSlot.append(4)
-                        if 'Ordnance' in newSlots[i]:
-                            currSlot.append(3)
-                        if 'Weapon' in newSlots[i] and 'Turret' not in newSlots[i]:
-                            currSlot.append(2)
-                        if 'Turret' in newSlots[i]:
-                            currSlot.append(1)
+                        if i < len(newSlots):
+                            if 'CM' in newSlots[i] or 'Countermeasures' in newSlots[i]:
+                                currSlot.append(4)
+                            if 'Ordnance' in newSlots[i]:
+                                currSlot.append(3)
+                            if 'Weapon' in newSlots[i] and 'Turret' not in newSlots[i]:
+                                currSlot.append(2)
+                            if 'Turret' in newSlots[i]:
+                                currSlot.append(1)
                         slotCompatibility.append(currSlot)
 
                     compOrder = [4,3,2,1]
@@ -1990,7 +2081,7 @@ def createLoadout(*editArgs):
     createLoadoutWindow.close()
     compdb.commit()
 
-    return valueList[0:3]
+    return valueList
 
 def duplicateLoadout(selection):
     
@@ -2016,9 +2107,9 @@ def duplicateLoadout(selection):
         else:
             slotCompTypes.append([0])
 
-    chassisData = cur.execute("SELECT * FROM chassis").fetchall()
-    chassisList = [chassisType] + [x[0] for x in chassisData if x[0] != chassisType]
-    selectionMax = [x[1] for x in chassisData if x[0] == chassisType][0]
+    chassisData = [x for x in tables['chassis']]
+    chassisList = [chassisType] + [x['name'] for x in chassisData if x['name'] != chassisType]
+    selectionMax = [x['maxmass'] for x in chassisData if x['name'] == chassisType][0]
 
     leftCol = [
         [sg.Push(),sg.Text('Loadout to Duplicate:',font=baseFont,p=elementPadding)],
@@ -2053,13 +2144,13 @@ def duplicateLoadout(selection):
 
         if event == 'chassisselect':
             newChassis = values['chassisselect']
-            newMaxMass = [x[1] for x in chassisData if x[0] == newChassis][0]
+            newMaxMass = [x['maxmass'] for x in chassisData if x['name'] == newChassis][0]
             dupeWindow['maxmass'].update("Max Mass: " + newMaxMass)
 
         if event == "Duplicate":
 
             newChassis = values['chassisselect']
-            newSlots = [x[2:10] for x in chassisData if x[0] == newChassis][0] #important: we don't care about the selection's *slots*, only the types of components that are loaded.
+            newSlots = [x['weaponslots'] for x in chassisData if x['name'] == newChassis][0] #important: we don't care about the selection's *slots*, only the types of components that are loaded.
             slotCompatibility = []
             for i in range(0,8):
                 currSlot = []
@@ -2266,7 +2357,6 @@ def loadLoadout(window):
                 alert('Error',['Please select a loadout.'],['Okay'],0)
                 remodalize(loadWindow)
             else:
-                oldName = loadout
                 newValues = createLoadout(loadout)
                 if [loadWindow['data0'],loadWindow['data1'],loadWindow['data2']] != newValues and newValues != ['', '', '']:
                     slotText, statText = updateLoadoutPreview(newValues[0])
@@ -2283,10 +2373,22 @@ def loadLoadout(window):
                             loadWindow['data' + str(i)].update(statText[i-1])
                     loadWindow['loadoutname'].update(set_to_index=loadoutList.index(newValues[0]))
                     loadWindow.refresh()
-                    if window['loadoutname'].get() == oldName:
-                        window['loadoutname'].update(newValues[0])
-                        updateMassStrings(newValues[2], window)
-                        window.refresh()
+                    packedValues = packValues(newValues)
+                    for i in packedValues:
+                        window[i].update(value=packedValues[i])
+                    refreshLoadout(window, packedValues)
+                    window['loadoutname'].update(newValues[0])
+                    window['chassistype'].update(newValues[1])
+                    headers = updateSlotHeaders(newValues[1], window)
+                    Lists = updateParts(newValues[1])
+                    updateDropdowns(Lists, window, packedValues, False, headers)
+                    updateMassStrings(newValues[2], window)
+                    updateDrainStrings(window)
+                    doWeaponCalculations(window)
+                    doPropulsionCalculations(window)
+                    updateOverloadMults(window)
+                    updateProfile(window)
+                    window.refresh()
 
         if event == "Duplicate":
             try:
@@ -2345,14 +2447,7 @@ def loadLoadout(window):
 def saveLoadout(window, *saveAs):
     event, values = window.read(timeout=0)
 
-    loadoutName = window['loadoutname'].get()
-
-    loadout = list(cur2.execute("SELECT * FROM loadout WHERE name = ?", [loadoutName]).fetchall()[0])
-
-    try:
-        loadout[0] = saveAs[0]
-    except:
-        pass
+    loadout = [window['loadoutname'].get(),window['chassistype'].get(),tryFloat(window['loadoutmass'].get().split(' ')[2])]
 
     newLoadout = loadout[:3] + [
         values['frontarmorselection'], 
@@ -2452,9 +2547,8 @@ def ordnanceCheck(stats, compName):
 
 def createComponent(componentName, *editArgs):
 
-    lookup = cur.execute("SELECT * FROM component WHERE type = '" + componentName + "'").fetchall()[0]
-    fullStats = cur.execute("SELECT stat1,stat2,stat3,stat4,stat5,stat6,stat7,stat8 FROM component").fetchall()
-    fullStats = [list(x) for x in fullStats]
+    lookup = [x for x in tables['componentstats'] if x['comptype'] == componentName][0]
+    fullStats = lookup['stat']
     fullStatsList = []
     for stats in fullStats:
         fullStatsList.extend([x for x in stats if x != ''])
@@ -2472,20 +2566,17 @@ def createComponent(componentName, *editArgs):
         editingName = ''
         editArgs = [""] * 9
 
-    for i in range(1, 9):
-        if lookup[i] != '':
-            if lookup[i] == 'Booster Energy Consumption Rate':
+    for i in range(len(lookup['stat'])):
+        if lookup['stat'][i] != '':
+            if lookup['stat'][i] == 'Booster Energy Consumption Rate':
                 statColumn.append([sg.Push(), sg.Text("Booster Energy Consumption:", font=baseFont)]) #Truncates this stat since it's the only one that's too long to fit
             else:
-                statColumn.append([sg.Push(), sg.Text(lookup[i] + ":", font=baseFont)])
-            if lookup[i] == "Type":
-                ordnance = cur.execute("SELECT * FROM ordnance").fetchall()
-                types = []
-                for j in ordnance:
-                    types.append(j[0])
-                inputColumn.append([sg.Combo(values = types, s=(25,14), key="stat" + str(i), font=baseFont, readonly=True, default_value=editArgs[i])])
+                statColumn.append([sg.Push(), sg.Text(lookup['stat'][i] + ":", font=baseFont)])
+            if lookup['stat'][i] == "Type":
+                types = [x['name'] for x in tables['ordnance']]
+                inputColumn.append([sg.Combo(values = types, s=(25,14), key="stat" + str(i), font=baseFont, readonly=True, default_value=editArgs[i+1])])
             else:
-                inputColumn.append([sg.Input(s = 10, key="stat" + str(i), font=baseFont, default_text=editArgs[i])])
+                inputColumn.append([sg.Input(s = 10, key="stat" + str(i), font=baseFont, default_text=editArgs[i+1])])
 
     statColumn.insert(0,[sg.Push(), sg.Text('Component Name:', font=baseFont)])
 
@@ -2496,12 +2587,12 @@ def createComponent(componentName, *editArgs):
         inputColumn.insert(0,[sg.Text(editingName,font=baseFont),sg.Push()])
 
     tessLines = [
-        [sg.Push(),sg.Text('Tesseract OCR is Enabled   ',font=baseFont,p=0),sg.Button(' ? ',font=("Calibri",10,"bold"),p=0),sg.Push()],
+        [sg.Push(),sg.Text('Tesseract OCR is Enabled   ',font=baseFont,p=0),sg.Button(' ? ',font=(applicationFont,10,"bold"),p=0),sg.Push()],
         [sg.Text('',font=baseFont,p=0)],
         [sg.Push(),sg.Text('Use the Windows Snipping Tool (Win+Shift+S) to capture your',font=baseFont,p=0),sg.Push()],
         [sg.Push(),sg.Text('component stats, and Ctrl-V to paste them into this window.',font=baseFont,p=0),sg.Push(),],
         [sg.Text('',font=baseFont,p=0)],
-        [sg.Push(),sg.Text('This feature is experimental, so double-check the stats before saving!',font=baseFont,p=0),sg.Push()],
+        [sg.Push(),sg.Text('The OCR occasionally makes mistakes, so double-check the stats before saving!',font=baseFont,p=0),sg.Push()],
     ]
 
     layout = [
@@ -2612,7 +2703,7 @@ def createComponent(componentName, *editArgs):
                         alert("Alert",["You appear to have pasted stats from a different component type than the one selected."],[],3)
                         break
                 if componentName in ['Ordnance Launcher','Ordnance Pack']:
-                    ordnanceData = cur.execute("SELECT * FROM ordnance").fetchall()
+                    ordnanceData = [x for x in tables['ordnance']]
                     massValue = 0
                     maxDam = 0
                     vssValue = 0
@@ -2638,10 +2729,9 @@ def createComponent(componentName, *editArgs):
                     if 'Damage Modifier Against NPCs' in textStats:
                         pvemultValue = tryFloat(textValues[textStats.index('Damage Modifier Against NPCs')])
                     if not (maxDam == 0 and massValue == 0) and not (vssValue == 0 and vsaValue == 0):
-                        ordnanceData = cur.execute("SELECT * FROM ordnance").fetchall()
                         if refireValue == 0.5:
                             for i in ordnanceData:
-                                if massValue >= tryFloat(i[4]) and massValue <= tryFloat(i[5]) and pvemultValue == tryFloat(i[1]):
+                                if massValue >= tryFloat(i['massrange'][0]) and massValue <= tryFloat(i['massrange'][1]) and pvemultValue == tryFloat(i['pvemod']):
                                     textStats.append('Type')
                                     textValues.append(i[0])
                                     break
@@ -2649,12 +2739,12 @@ def createComponent(componentName, *editArgs):
                             ordTypeGuess = '' #While possible, I'm kinda just hoping it doesn't guess two different ordnance types here. If it does, it'll just use the second one for the time being. I don't really wanna have to come up with a priority system.
                             if massValue > 0:
                                 for i in ordnanceData:
-                                    if vssValue == tryFloat(i[2]) and vsaValue == tryFloat(i[3]) and massValue >= tryFloat(i[4]) and massValue <= tryFloat(i[5]):
+                                    if vssValue == tryFloat(i['vsx'][0]) and vsaValue == tryFloat(i['vsx'][1]) and massValue >= tryFloat(i['massrange'][0]) and massValue <= tryFloat(i['massrange'][1]):
                                         ordTypeGuess = i[0]
                                         break
                             if maxDam > 0:
                                 for i in ordnanceData:
-                                    if vssValue == tryFloat(i[2]) and vsaValue == tryFloat(i[3]) and maxDam >= tryFloat(i[6]) and maxDam <= tryFloat(i[7]):
+                                    if vssValue == tryFloat(i['vsx'][0]) and vsaValue == tryFloat(i['vsx'][1]) and maxDam >= tryFloat(i['damrange'][0]) and maxDam <= tryFloat(i['damrange'][1]):
                                         ordTypeGuess = i[0]
                                         break
                             if ordTypeGuess != '':
@@ -2698,7 +2788,7 @@ def createComponent(componentName, *editArgs):
 
         if event == "Save":
             stats = []
-            for i in range(1, 9):
+            for i in range(0, 8):
                 try:
                     stats.append(float(values['stat' + str(i)]))
                 except:
@@ -2706,9 +2796,8 @@ def createComponent(componentName, *editArgs):
                         stats.append(values['stat' + str(i)])
                     except:
                         pass
-
+            
             statsReduced = [x for x in stats if x != '' and x != 0]
-
             try:
                 weaponList = cur2.execute("SELECT name FROM weapon").fetchall()[0]
             except:
@@ -2752,7 +2841,7 @@ def createComponent(componentName, *editArgs):
                 for i in range(0, len(stats)):
                     bindings += "?, "
                     if i > 0:
-                        statString += lookup[i].lower().replace(" ","").replace("/","").replace(".","") + ", "
+                        statString += lookup['stat'][i-1].lower().replace(" ","").replace("/","").replace(".","") + ", "
                 bindings = bindings[:-2]
                 statString = "name, " + statString[:-2]
                 compName = componentName.lower().replace(" ","").replace("/","").replace(".","")
@@ -2842,7 +2931,7 @@ def createComponent(componentName, *editArgs):
 
 def getComponentStats():
 
-    components = listify(cur.execute("SELECT type FROM component").fetchall())
+    components = [x['comptype'] for x in tables['componentstats']]
     componentArray = []
     componentNames = []
     for i in components:
@@ -2863,7 +2952,7 @@ def updateStatPreview(componentWindow, values):
     index2 = partList.index(componentName)
     componentWindow['partname'].update(componentName)
     componentWindow['parttype'].update(componentType)
-    statList = list(cur.execute("SELECT * FROM component WHERE type = ?", [componentType]).fetchall()[0][17:35])
+    statList = [x['statdisp'] for x in tables['componentstats'] if x['comptype'] == componentType][0]
     statValues = componentArray[index1][index2][1:]
     for i in range(1, 9):
         try:
@@ -2908,10 +2997,10 @@ def clearStatPreview(componentWindow):
 def componentLibrary():
     sg.theme('Discord_Dark')
 
-    compLib = [list(x) for x in cur.execute("SELECT * FROM complib").fetchall()]
+    compLib = [x for x in tables['complib']]
 
-    components = [x[0] for x in cur.execute('SELECT type FROM component').fetchall()]
-    componentStats = [list(x) for x in cur.execute('SELECT stat1disp, stat2disp, stat3disp, stat4disp, stat5disp, stat6disp, stat7disp, stat8disp FROM component').fetchall()]
+    components = [x['comptype'] for x in tables['componentstats']]
+    componentStats = [x['statdisp'] for x in tables['componentstats']]
 
     leftColumn = [
         [sg.Push(),sg.Text("Select Component Type", font=baseFont, p=fontPadding),sg.Push()],
@@ -2981,7 +3070,7 @@ def componentLibrary():
             selectedCompType = values['comptypeselect'][0]
             compType = values['comptypeselect'][0].lower().replace(" ","").replace("/","").replace(".","")
             inUseList = [x[2:] for x in [y[0] for y in cur2.execute("SELECT name FROM " + compType).fetchall()] if '¤' in x]
-            compList = [x[1] for x in compLib if x[0] == selectedCompType and x[1] not in inUseList]
+            compList = [x['name'] for x in compLib if x['type'] == selectedCompType and x['name'] not in inUseList]
             compLibWindow['complistbox'].update(compList)
             compSelectBuffer = []
 
@@ -3010,7 +3099,7 @@ def componentLibrary():
                 compName = compList[selectedComp]
                 compStatNames = componentStats[components.index(values['comptypeselect'][0])]
                 compLibWindow['parttype'].update(compName)
-                compStats = [tryFloatRetainPrecision(x) if tryFloat(x) > 0  else x for x in [x[2:] for x in compLib if x[1] == compName][0]]
+                compStats = [tryFloatRetainPrecision(x) if tryFloat(x) > 0  else x for x in [x['compstats'] for x in compLib if x['name'] == compName][0]]
                 for i in range(1,9):
                     try:
                         compLibWindow['stat' + str(i) + 'text'].update(compStatNames[i-1])
@@ -3039,21 +3128,21 @@ def componentLibrary():
             try:
                 compType = values['comptypeselect'][0].lower().replace(" ","").replace("/","").replace(".","")
                 compList = values['complistbox']
-                compStatNames = [x.lower().replace(" ", "").replace("/", "").replace(".", "") for x in cur.execute('SELECT * FROM component WHERE type = ?',values['comptypeselect']).fetchall()[0][1:] if (x != '' and len(x) > 2 and ':' not in x)]
+                compStatNames = [x.lower().replace(" ", "").replace("/", "").replace(".", "") for x in [y['stat'] for y in tables['componentstats'] if y['comptype'] == values['comptypeselect'][0]][0] if x != '']
                 bindings = ('?, ' * (len(compStatNames)+1))[:-2]
                 statString = 'name, '
                 for i in compStatNames:
                     statString += i + ', '
                 statString = statString[:-2]
-                addList = [[y for y in x[1:] if y != ''] for x in compLib if x[1] in compList]
+                addList = [x for x in compLib if x['name'] in compList]
                 for i in range(len(addList)):
-                    addList[i][0] = '¤ ' + addList[i][0]
+                    addList[i] = ['¤ ' + addList[i]['name']] + addList[i]['compstats']
                 cur2.executemany("INSERT OR REPLACE INTO " + compType + "(" + statString + ") VALUES(" + bindings + ")", addList)
                 compdb.commit()
                 modified = True
 
                 inUseList = [x[2:] for x in [y[0] for y in cur2.execute("SELECT name FROM " + compType).fetchall()] if '¤' in x]
-                compList = [x[1] for x in compLib if x[0] == selectedCompType and x[1] not in inUseList]
+                compList = [x['name'] for x in compLib if x['type'] == selectedCompType and x['name'] not in inUseList]
                 scrollPosition = min(len(compList)-1,compSelectBuffer[-1])
                 compLibWindow['complistbox'].update(compList,scroll_to_index=scrollPosition)
             except:
@@ -3179,7 +3268,7 @@ def manageComponents():
                 index2 = partList.index(compName)
                 componentWindow['partname'].update(compName)
                 componentWindow['parttype'].update(componentType)
-                statList = list(cur.execute("SELECT * FROM component WHERE type = ?", [componentType]).fetchall()[0][17:35])
+                statList = [x['statdisp'] for x in tables['componentstats'] if x['comptype'] == componentType][0]
                 statValues = componentArray[index1][index2][1:]
 
                 for i in range(1,9):
@@ -3481,7 +3570,7 @@ def updateProfile(window):
     chassis = window['chassistype'].get()
 
     if chassis != '':
-        [minThrottle, optThrottle, maxThrottle] = cur.execute("SELECT minthrottle, optthrottle, maxthrottle FROM chassis WHERE name = ?", [chassis]).fetchall()[0]
+        [minThrottle, optThrottle, maxThrottle] = [x['profile'] for x in tables['chassis'] if x['name'] == chassis][0]
         
         minThrottle = tryFloat(minThrottle)
         optThrottle = tryFloat(optThrottle)
@@ -3515,7 +3604,6 @@ def updateProfile(window):
         # breakpoints.append(['0%',str(int(minThrottle*100))+'%'])
 
         # print([b for b in breakpoints])
-
 
         percents = [int(percents[i]*100) for i in range(0,len(percents)) if i%10 == 0]
 
@@ -3575,6 +3663,9 @@ def setMenus(menuEnables):
     return menu_def
 
 def main():
+
+    init = datetime.now()
+    print('init',init)
 
     if __name__ == '__main__':
         multiprocessing.freeze_support()
@@ -4357,14 +4448,20 @@ def main():
             [sg.vtop(sg.Column(leftPane, background_color=bgColor, p=0)),sg.vtop(sg.Column(rightPane, background_color=bgColor, p=0))],
         ]
 
+        print('layout set',datetime.now()-init)
+
         window = sg.Window("Seraph's Loadout Tool V" + currentVersion,layout, finalize=True, background_color=bgColor, icon=os.path.abspath(os.path.join(os.path.dirname(__file__), 'SLT_Icon.ico')), margins=(elementPadding, elementPadding), enable_close_attempted_event=True)
         move_center(window)
+
+        print('window created',datetime.now()-init)
 
         chassis = ''
         chassisMass = 0
         headers = [] * 8
 
         newChassis, newChassisMass, loaded = loadExitSave(window)
+
+        print('exitsave loaded',datetime.now()-init)
 
         window.bind('<Control-s>', "Save Loadout")
         window.bind('<Control-n>', "New Loadout")
@@ -4395,10 +4492,12 @@ def main():
             updateProfile(window)
             menuEnables[1] = True
 
+            print('window updated with exitsave', datetime.now()-init)
+
         window['menu'].update(setMenus(menuEnables))
 
         try:
-            gist = get(versionURL).text.split('\n\n')
+            gist = get(versionURL,timeout=1).text.split('\n\n')
             latestVersion = gist[0]
             latestURL = gist[1]
         except:
@@ -4413,6 +4512,8 @@ def main():
                     window.close()
                     return
 
+        print('initialized, beginning loop',datetime.now()-init)
+
         while True:
             event, values = window.read()
 
@@ -4425,7 +4526,7 @@ def main():
                 updateDropdowns(Lists, window, values, False, headers)
 
             if event == 'New Loadout':
-                [newName, newChassis, newChassisMass] = createLoadout()
+                [newName, newChassis, newChassisMass] = createLoadout()[0:3]
                 if not newName == '':
                     clearLoadout(window, "all")
                     event, values = window.read(timeout=0)
@@ -4532,7 +4633,7 @@ def main():
                 appWindow = FindWindow(None, "Seraph's Loadout Tool V" + currentVersion)
                 rect = GetWindowRect(appWindow)
                 if throttleProfileCaptureMode:
-                    rect = (rect[0]+8+1123+36, rect[1]+51+235+195+8+8+8+1+28, rect[2]-8-8-35, rect[3]-8-87-8-8-7)
+                    rect = (rect[0]+8+1123+26, rect[1]+51+235+195+8+8+8+1+28, rect[2]-8-8-25, rect[3]-8-87-8-8-7)
                 else:
                     rect = (rect[0]+8, rect[1]+51, rect[2]-8, rect[3]-8)
                 rect = [displayScaleFactor * x for x in rect]
@@ -4707,7 +4808,6 @@ def main():
                 break
 
         window.close()
-        tables.close()
         compdb.close()
 
 main()

@@ -1,9 +1,11 @@
 import ctypes
 import FreeSimpleGUI as sg
+import json
 import math
 import numpy as np
 import os
 import sqlite3
+import sys
 import win32clipboard
 
 from datetime import datetime, timedelta
@@ -43,12 +45,17 @@ sg.theme_add_new('Discord_Dark', theme_definition)
 sg.theme('Discord_Dark')
 
 global tables
-global cur
 global compdb
 global cur2
 
-tables = sqlite3.connect("file:"+os.path.abspath(os.path.join(os.path.dirname(__file__), 'tables.db'))+"?mode=ro", uri=True)
-cur = tables.cursor()
+dataDir = os.getenv('APPDATA') + "\\Seraph's Loadout Tool"
+
+try:
+    with open(os.getenv('APPDATA') + "\\Seraph's Loadout Tool\\data.json", 'r') as f:
+        tables = json.load(f)
+except:
+    print('An error occurred. Table data could not be located.')
+    sys.exit()
 
 compdb = sqlite3.connect("file:"+os.getenv("APPDATA")+"\\Seraph's Loadout Tool\\savedata.db?mode=rw", uri=True)
 cur2 = compdb.cursor()
@@ -76,7 +83,7 @@ def tryInt(x):
         return int(x)
     except:
         return 0
-    
+
 def generateThreshold(partLevel, unicornStat, unicornPost):
 
     means, mods, stdevs, weights = pullStatsData(partLevel)
@@ -91,8 +98,7 @@ def generateThreshold(partLevel, unicornStat, unicornPost):
     elif unicornStat == 1 and partLevel[0] == 'A':
         tail = -1
     else:
-        tailStat = 'stat' + str(unicornStat) + 're'
-        tail = int(cur.execute('SELECT ' + tailStat + ' FROM component WHERE type = ?', [compType]).fetchall()[0][0])
+        tail = [int(x['tail'][unicornStat-1]) for x in tables['componentstats'] if x['comptype'] == compType][0]
 
     reLevel = tryInt(partLevel[1])
     if reLevel == 0:
@@ -106,7 +112,7 @@ def generateThreshold(partLevel, unicornStat, unicornPost):
 
     threshold = getRarity(unicornPost/reMult, means[unicornStat], stdevs[unicornStat], weights)
 
-    count = sum([tryInt(x[0]) for x in cur.execute('SELECT weight FROM brands WHERE relevel = ?', [partLevel]).fetchall()])
+    count = sum([int(x['weight']) for x in tables['brandslist'] if x['relevel'] == partLevel])
 
     if tail == 1:
         threshold = (1 - threshold) * count
@@ -252,9 +258,9 @@ def pause():
 
 def pullStatsData(reLevel):
 
-    brandWeights = listify(cur.execute("SELECT weight FROM brands WHERE relevel = ?", [reLevel]).fetchall())
-    rawMeans = cur.execute("SELECT stat1mean, stat2mean, stat3mean, stat4mean, stat5mean, stat6mean, stat7mean, stat8mean, stat9mean FROM brands WHERE relevel = ?", [reLevel]).fetchall()
-    rawMods = cur.execute("SELECT stat1mod, stat2mod, stat3mod, stat4mod, stat5mod, stat6mod, stat7mod, stat8mod, stat9mod FROM brands WHERE relevel = ?", [reLevel]).fetchall()
+    brandWeights = [x['weight'] for x in tables['brandslist'] if x['relevel'] == reLevel]
+    rawMeans = [x['statmeans'] for x in tables['brandslist'] if x['relevel'] == reLevel]
+    rawMods = [x['statmods'] for x in tables['brandslist'] if x['relevel'] == reLevel]
     means = []
     mods = []
     stdevs = []
@@ -580,14 +586,26 @@ def getMatches(reCalcWindow):
 
     reLevel = compType[0] + str(level%10)
 
-    compStats = list(cur.execute("SELECT * from component WHERE type = ?", [compType]).fetchall()[0][17:25])
+    compStats = [x['statdisp'] for x in tables['componentstats'] if x['comptype'] == compType][0]
+    while len(compStats) < 8:
+        compStats = compStats + ['']
+    compStatsDropdown = [x['stat'] for x in tables['componentstats'] if x['comptype'] == compType][0]
+    while len(compStatsDropdown) < 8:
+        compStatsDropdown = compStatsDropdown + ['']
+    tails = [tryInt(y) for y in [x['tail'] for x in tables['componentstats'] if x['comptype'] == compType][0]]
+    while len(tails) < 8:
+        tails = tails + [0]
+        
     compStats = [x[:-1] for x in compStats if x != '']
-    compStatsDropdown = list(cur.execute("SELECT * from component WHERE type = ?", [compType]).fetchall()[0][1:9])
-    tails = list(cur.execute("SELECT * from component WHERE type = ?", [compType]).fetchall()[0][9:17])
+
+
     if 'A/HP' not in compStats:
-        compStats.insert(0,'A/HP')
-        compStatsDropdown.insert(0,'Armor/Hitpoints')
-        tails.insert(0,'1')
+        compStats = ['A/HP'] + compStats
+        compStatsDropdown = ['Armor/Hitpoints'] + compStatsDropdown
+        tails = [1] + tails
+    else:
+        compStats = compStats + ['']
+        tails = tails + [0]
     
     if target == 'Shield Recharge Rate':
         target = 'Recharge'
@@ -598,9 +616,11 @@ def getMatches(reCalcWindow):
 
     tails = [tryFloat(y) for y in tails if y != '']
 
-    brandNames = listify(cur.execute("SELECT name FROM brands WHERE relevel = ?", [reLevel]).fetchall())
+    brandNames = [x['name'] for x in tables['brandslist'] if x['relevel'] == reLevel]
     
     means, mods, stdevs, mixtureWeights = pullStatsData(reLevel)
+
+    compStats = [x for x in compStats if x != ''] #compatibility
 
     statMeans = []
 
@@ -1048,8 +1068,12 @@ def updateREOutputs(reCalcWindow):
         reMult = reMults[values['relevelselect']-1]
         compStats = []
         for i in range(0,9):
-            compStats.append(reCalcWindow['stattext' + str(i)].get())
-        tails = list(cur.execute("SELECT stat1re,stat2re,stat3re,stat4re,stat5re,stat6re,stat7re,stat8re FROM component WHERE type = ?",[values['componentselect']]).fetchall()[0])
+            compStats = compStats + [reCalcWindow['stattext' + str(i)].get()]
+
+        tails = [tryInt(y) for y in [x['tail'] for x in tables['componentstats'] if x['comptype'] == values['componentselect']][0]]
+        while len(tails) < 8:
+            tails = tails + [0]
+
         if values['componentselect'] != 'Armor':
             tails = ['1'] + tails
         for i in range(0,9):
@@ -1098,16 +1122,16 @@ def isUnicorn(rarityList,reCalcWindow):
 
     #Gathers a selection of unicorn thresholds for you based on the counts collected in the brandslist.csv. These will need significant tweaking.
     #Old method was using W0 max 5700 as the baseline. This allows me to incorporate a number of other archetypal unicorn stats to set a better baseline.
-    thresholds = [generateThreshold('A0',1,2499.9), generateThreshold('C0',4,69), generateThreshold('E0',6,127), generateThreshold('R6',2,30000), generateThreshold('S0',3,4400), generateThreshold('W8',4,4200), generateThreshold('W0',4,5700)]
+    thresholds = [generateThreshold('A0',1,2499.9), generateThreshold('C0',4,69), generateThreshold('E0',6,127), generateThreshold('R6',2,30000), generateThreshold('S0',3,4400), generateThreshold('W0',4,5700)]
     threshold = math.pow(10,sum([math.log10(x) for x in thresholds])/len(thresholds))
 
     compType = values['componentselect']
     level = values['relevelselect']
     reLevel = compType[0] + str(level%10)
 
-    compStats = list(cur.execute("SELECT * from component WHERE type = ?", [compType]).fetchall()[0][17:25])
+    compStats = [x['statdisp'] for x in tables['componentstats'] if x['comptype'] == compType][0]
     if 'A/HP:' not in compStats:
-        compStats.insert(0,'A/HP:')
+        compStats = ['A/HP:'] + compStats
     
     compStats = [x for x in compStats if x != '']
 
@@ -1120,10 +1144,7 @@ def isUnicorn(rarityList,reCalcWindow):
             inputStats.append(reCalcWindow['statoutput' + str(i)].get())
 
     #note: relevel is part-level, not just level (e.g. A0 rather than 10)
-    counts = cur.execute("SELECT weight FROM brands WHERE relevel = ?",[reLevel]).fetchall()
-    count = 0
-    for i in counts:
-        count += int(i[0])
+    count = sum([int(x['weight']) for x in tables['brandslist'] if x['relevel'] == reLevel])
 
     unicorns = []
 
@@ -1147,12 +1168,16 @@ def updateMatchQuality(rarityList,logDeltas,reCalcWindow):
     event, values = reCalcWindow.read(timeout=0)
     compType = values['componentselect']
 
-    compStats = list(cur.execute("SELECT * from component WHERE type = ?", [compType]).fetchall()[0][17:25])
-    compStats = [x[:-1] for x in compStats if x != '']
-    compStatsDropdown = list(cur.execute("SELECT * from component WHERE type = ?", [compType]).fetchall()[0][1:9])
-    if 'A/HP' not in compStats:
-        compStats.insert(0,'A/HP')
-        compStatsDropdown.insert(0,'Armor/Hitpoints')
+    compStats = [x['statdisp'] for x in tables['componentstats'] if x['comptype'] == compType][0]
+    while len(compStats) < 8:
+        compStats = compStats + ['']
+    compStatsDropdown = [x['stat'] for x in tables['componentstats'] if x['comptype'] == compType][0]
+    while len(compStatsDropdown) < 8:
+        compStatsDropdown = compStatsDropdown + ['']
+
+    if 'A/HP:' not in compStats:
+        compStats = ['A/HP:'] + compStats
+        compStatsDropdown = ['Armor/Hitpoints'] + compStatsDropdown
     
     target = values['matchingtarget']
 
@@ -1228,46 +1253,36 @@ def brandTable(reCalcWindow, newWindow, *brandWindow):
 
     reLevel = compType[0] + str(level%10)
 
-    tails = list(cur.execute("SELECT stat1re, stat2re, stat3re, stat4re, stat5re, stat6re, stat7re, stat8re FROM component WHERE type = ?",[compType]).fetchall()[0])
-    stats = list(cur.execute("SELECT stat1disp, stat2disp, stat3disp, stat4disp, stat5disp, stat6disp, stat7disp, stat8disp FROM component WHERE type = ?",[compType]).fetchall()[0])
+    stats = [x['statdisp'] for x in tables['componentstats'] if x['comptype'] == compType][0]
+    while len(stats) < 8:
+        stats = stats + ['']
+    tails = [tryInt(y) for y in [x['tail'] for x in tables['componentstats'] if x['comptype'] == compType][0]]
+    while len(tails) < 8:
+        tails = tails + [0]
+    
     stats = [x[:-1] for x in stats if x != '']
     if stats[0] != 'A/HP':
         stats.insert(0,'A/HP')
         tails.insert(0,1)
-    
-    brandsList = list(cur.execute("SELECT * FROM brands WHERE relevel = ?", [reLevel]).fetchall())
-    brandNames = list(cur.execute("SELECT name FROM brands WHERE relevel = ?", [reLevel]).fetchall())
 
-    brandsList = [x[4:22] for x in brandsList]
+    brandNames = [x['name'] for x in tables['brandslist'] if x['relevel'] == reLevel]
+
+    statmeans = [x['statmeans'] for x in tables['brandslist'] if x['relevel'] == reLevel]
+    statmods = [x['statmods'] for x in tables['brandslist'] if x['relevel'] == reLevel]
 
     means = []
     stdevs = []
 
-    for i in brandsList:
-        newMeans = []
-        newStdevs = []
-        for j in range(0,len(i)):
-            if i[j] != '':
-                if j%2 == 0:
-                    newMeans.append(float(i[j]))
-                else:
-                    newStdevs.append(float(i[j]) * float(i[j-1]) / 2)
-        means.append(newMeans)
-        stdevs.append(newStdevs)
+    for i in range(len(statmeans)):
+        rowMeans = statmeans[i]
+        rowStdevs = []
+        for j in range(len(rowMeans)):
+            rowStdevs.append(statmeans[i][j] * statmods[i][j] / 2)
+        means.append(rowMeans)
+        stdevs.append(rowStdevs)
 
-    tempMeans = means
-    tempStdevs = stdevs
-    means = []
-    stdevs = []
-
-    for i in range(0,len(tempMeans[0])):
-        newMeans = []
-        newStdevs = []
-        for j in range(0,len(tempMeans)):
-            newMeans.append(tempMeans[j][i])
-            newStdevs.append(tempStdevs[j][i])
-        means.append(newMeans)
-        stdevs.append(newStdevs)
+    means = np.transpose(means)
+    stdevs = np.transpose(stdevs)
 
     rarityList, rarityList1inx, rarityout, matches, matchesRaw, postRE, logDelta, matchDelta = getMatches(reCalcWindow)
 
@@ -1394,7 +1409,7 @@ def brandTable(reCalcWindow, newWindow, *brandWindow):
     ]
 
     for i in range(0,len(brandNames)):
-        descCol.append([sg.Push(),sg.Text(brandNames[i][0],font=baseFont,p=0)])
+        descCol.append([sg.Push(),sg.Text(brandNames[i],font=baseFont,p=0)])
 
     Layout = [
         [sg.Frame('',descCol,border_width=0,p=elementPadding)]
@@ -1470,9 +1485,17 @@ def reAnalysis(reCalcWindow):
         direction = -1
     reMults = [0.02,0.03,0.03,0.04,0.04,0.05,0.05,0.06,0.07,0.07]
     reMult = reMults[int(level)-1]
-    tails = list(cur.execute("SELECT stat1re,stat2re,stat3re,stat4re,stat5re,stat6re,stat7re,stat8re FROM component WHERE type = ?",[compType]).fetchall()[0])
+    
+    compStats = [x['statdisp'] for x in tables['componentstats'] if x['comptype'] == compType][0]
+    while len(compStats) < 8:
+        compStats = compStats + ['']
+    statsDropdown = [x['stat'] for x in tables['componentstats'] if x['comptype'] == compType][0]
+    while len(statsDropdown) < 8:
+        statsDropdown = statsDropdown + ['']
+    tails = [tryInt(y) for y in [x['tail'] for x in tables['componentstats'] if x['comptype'] == compType][0]]
+    while len(tails) < 8:
+        tails = tails + [0]
 
-    compStats = list(cur.execute("SELECT stat1disp,stat2disp,stat3disp,stat4disp,stat5disp,stat6disp,stat7disp,stat8disp FROM component WHERE type = ?",[compType]).fetchall()[0])
     stats = []
 
     for i in range(0,9):
@@ -1482,10 +1505,10 @@ def reAnalysis(reCalcWindow):
             stats.append(reCalcWindow['statoutput' + str(i)].get())
 
     if 'A/HP:' not in compStats:
-        compStats.insert(0,'A/HP:')
-        tails.insert(0,'1')
+        compStats = ['A/HP:'] + compStats
+        tails = [1] + tails
     else:
-        tails.append('0')
+        tails = tails + [0]
 
     bestCase = []
     worstCase = []
@@ -1589,7 +1612,6 @@ def reAnalysisUI(reCalcWindow, newWindow, *analysisWindow):
 
     event, values = reCalcWindow.read(timeout=0)
     postsList, percentsList, rounding = reAnalysis(reCalcWindow)
-    print(postsList)
     
     compName = values['projectname']
     compType = values['componentselect']
@@ -1600,7 +1622,7 @@ def reAnalysisUI(reCalcWindow, newWindow, *analysisWindow):
 
     compStats = []
     for i in range(0,9):
-        compStats.append(reCalcWindow['stattext' + str(i)].get())
+        compStats = compStats + [reCalcWindow['stattext' + str(i)].get()]
 
     compStats = [x for x in compStats if x != '']
 
@@ -1839,13 +1861,21 @@ def loadREProject(reCalcWindow):
                 reLevel = project[2]
                 stats = project[3:]
 
-                compStats = list(cur.execute("SELECT * from component WHERE type = ?", [compType]).fetchall()[0][17:25])
-                statsDropdown = list(cur.execute("SELECT stat1,stat2,stat3,stat4,stat5,stat6,stat7,stat8 FROM component WHERE type = ?",[compType]).fetchall()[0])
+                compStats = [x['statdisp'] for x in tables['componentstats'] if x['comptype'] == compType][0]
+                while len(compStats) < 8:
+                    compStats = compStats + ['']
+                statsDropdown = [x['stat'] for x in tables['componentstats'] if x['comptype'] == compType][0]
+                while len(statsDropdown) < 8:
+                    statsDropdown = statsDropdown + ['']
+                tails = [tryInt(y) for y in [x['tail'] for x in tables['componentstats'] if x['comptype'] == compType][0]]
+                while len(tails) < 8:
+                    tails = tails + [0]
+
                 if 'A/HP:' not in compStats:
-                    compStats.insert(0,'A/HP:')
-                    statsDropdown.insert(0,'Armor/Hitpoints')
+                    compStats = ['A/HP:'] + compStats
+                    statsDropdown = ['Armor/Hitpoints'] + statsDropdown
                 else:
-                    compStats.append('')
+                    compStats = compStats + ['']
                 if 'Shield Hitpoints' in statsDropdown:
                     statsDropdown.remove('Shield Hitpoints')
                     statsDropdown.insert(3, 'Back Shield Hitpoints')
@@ -1874,11 +1904,20 @@ def loadREProject(reCalcWindow):
                 reLevel = project[2]
                 stats = project[3:]
 
-                compStats = list(cur.execute("SELECT * from component WHERE type = ?", [compType]).fetchall()[0][17:25])
+                compStats = [x['statdisp'] for x in tables['componentstats'] if x['comptype'] == compType][0]
+                while len(compStats) < 8:
+                    compStats = compStats + ['']
+                statsDropdown = [x['stat'] for x in tables['componentstats'] if x['comptype'] == compType][0]
+                while len(statsDropdown) < 8:
+                    statsDropdown = statsDropdown + ['']
+                tails = [tryInt(y) for y in [x['tail'] for x in tables['componentstats'] if x['comptype'] == compType][0]]
+                while len(tails) < 8:
+                    tails = tails + [0]
+                
                 if 'A/HP:' not in compStats:
-                    compStats.insert(0,'A/HP:')
+                    compStats = ['A/HP:'] + compStats
                 else:
-                    compStats.append('')
+                    compStats = compStats + ['']
 
                 reCalcWindow['projectname'].update(name)
                 reCalcWindow['componentselect'].update(compType)
@@ -1960,12 +1999,12 @@ def exportProject(reCalcWindow):
 
     compType = values['componentselect']
     compTypeFormatted = compType.lower().replace(" ", "").replace("/", "").replace(".", "")
-    compStatNames = list(cur.execute("SELECT stat1, stat2, stat3, stat4, stat5, stat6, stat7, stat8 FROM component WHERE type = ?",[compType]).fetchall()[0])
+    compStatNames = [x['stat'] for x in tables['componentstats'] if x['comptype'] == compType][0]
 
     compStats = []
     outputStats = []
     for i in range(0,9):
-        compStats.append(reCalcWindow['stattext' + str(i)].get())
+        compStats = compStats + [reCalcWindow['stattext' + str(i)].get()]
         if reCalcWindow['statsheader'].get() == 'Input Raw Component Stats':
             outputStats.append(reCalcWindow['statoutput' + str(i)].get())
         else:
@@ -2020,16 +2059,21 @@ def exportProject(reCalcWindow):
 
 def isReward(statValue,compType,level,stat):
 
-    compStats = list(cur.execute("SELECT * from component WHERE type = ?", [compType]).fetchall()[0][17:25])
-    tails = list(cur.execute("SELECT * from component WHERE type = ?", [compType]).fetchall()[0][9:17])
-    if 'A/HP:' not in compStats:
-        compStats.insert(0,'A/HP:')
-        tails.insert(0,1)
-    else:
-        compStats.append('')
-        tails.append(1)
+    compStats = [x['statdisp'] for x in tables['componentstats'] if x['comptype'] == compType][0]
+    while len(compStats) < 8:
+        compStats = compStats + ['']
+    tails = [tryInt(y) for y in [x['tail'] for x in tables['componentstats'] if x['comptype'] == compType][0]]
+    while len(tails) < 8:
+        tails = tails + [0]
 
-    index = str(compStats.index(stat)+1)
+    if 'A/HP:' not in compStats:
+        compStats = ['A/HP:'] + compStats
+        tails = [1] + tails
+    else:
+        compStats = compStats + ['']
+        tails = tails + [0]
+
+    index = compStats.index(stat)
     tail = int(tails[compStats.index(stat)])
 
     if tail > 0:
@@ -2044,15 +2088,15 @@ def isReward(statValue,compType,level,stat):
 
     reLevel = compType[0] + str(level%10)
 
-    means = cur.execute("SELECT stat" + index + "mean FROM brands WHERE relevel = ?",[reLevel]).fetchall()
-    mods = cur.execute("SELECT stat" + index + "mod FROM brands WHERE relevel = ?",[reLevel]).fetchall()
+    means = [x['statmeans'][index] for x in tables['brandslist'] if x['relevel'] == reLevel]
+    mods = [x['statmods'][index] for x in tables['brandslist'] if x['relevel'] == reLevel]
 
     isRewards = []
     lowHigh = []
 
     for i in range(0,len(means)):
-        mean = float(means[i][0])
-        mod = float(mods[i][0])
+        mean = float(means[i])
+        mod = float(mods[i])
         if mod < 0.001:
             low = mean * (1 - 3 * mod) #6 stdevs each way
             high = mean * (1 + 3 * mod)
@@ -2140,15 +2184,19 @@ def generateMatchBands(thresholdLow, thresholdHigh, matches, postRE, reCalcWindo
 
     means, mods, stdevs, mixtureWeights = pullStatsData(reLevel)
     
-    compStats = list(cur.execute("SELECT * from component WHERE type = ?", [compType]).fetchall()[0][17:25])
-    tails = list(cur.execute("SELECT * from component WHERE type = ?", [compType]).fetchall()[0][9:17])
+    compStats = [x['statdisp'] for x in tables['componentstats'] if x['comptype'] == compType][0]
+    while len(compStats) < 8:
+        compStats = compStats + ['']
+    tails = [tryInt(y) for y in [x['tail'] for x in tables['componentstats'] if x['comptype'] == compType][0]]
+    while len(tails) < 8:
+        tails = tails + [0]
 
     if 'A/HP:' not in compStats:
-        compStats.insert(0,'A/HP:')
-        tails.insert(0,1)
+        compStats = ['A/HP:'] + compStats
+        tails = [1] + tails
     else:
-        compStats.append('')
-        tails.append(1)
+        compStats = compStats + ['']
+        tails = tails + [0]
 
     tails = [int(x) for x in tails if x != '']
     compStats = [x for x in compStats if x != '']
@@ -2576,17 +2624,28 @@ def reCalc():
                     event, values = reCalcWindow.read(timeout=0)
                     reCalcWindow['menu'].update(menu_def_save_load_unlocked)
                     menu = menu_def_save_load_unlocked
-                    stats = list(cur.execute("SELECT stat1disp,stat2disp,stat3disp,stat4disp,stat5disp,stat6disp,stat7disp,stat8disp FROM component WHERE type = ?",[values['componentselect']]).fetchall()[0])
-                    statsDropdown = list(cur.execute("SELECT stat1,stat2,stat3,stat4,stat5,stat6,stat7,stat8 FROM component WHERE type = ?",[values['componentselect']]).fetchall()[0])
+                    
+                    stats = [x['statdisp'] for x in tables['componentstats'] if x['comptype'] == values['componentselect']][0]
+                    while len(stats) < 8:
+                        stats = stats + ['']
+                    statsDropdown = [x['stat'] for x in tables['componentstats'] if x['comptype'] == values['componentselect']][0]
+                    while len(statsDropdown) < 8:
+                        statsDropdown = statsDropdown + ['']
+                    tails = [tryInt(y) for y in [x['tail'] for x in tables['componentstats'] if x['comptype'] == values['componentselect']][0]]
+                    while len(tails) < 8:
+                        tails = tails + [0]
+
                     if 'A/HP:' not in stats:
-                        stats.insert(0,'A/HP:')
-                        statsDropdown.insert(0,'Armor/Hitpoints')
+                        stats = ['A/HP:'] + stats
+                        statsDropdown = ['Armor/Hitpoints'] + statsDropdown
                     else:
-                        stats.append('')
+                        stats = stats + ['']
                     if 'Shield Hitpoints' in statsDropdown:
-                        statsDropdown.remove('Shield Hitpoints')
-                        statsDropdown.insert(3, 'Back Shield Hitpoints')
-                        statsDropdown.insert(3, 'Front Shield Hitpoints')
+                        statsDropdownTemp = statsDropdown
+                        statsDropdownTemp.remove('Shield Hitpoints')
+                        statsDropdownTemp.insert(3, 'Back Shield Hitpoints')
+                        statsDropdownTemp.insert(3, 'Front Shield Hitpoints')
+                        statsDropdown = statsDropdownTemp
                     statsDropdown = [x for x in statsDropdown if x != '']
                     reCalcWindow['matchingtarget'].update(value='Average Rarity', values=['Average Rarity','Best Stat','Worst Stat'] + statsDropdown, size=(20,3+len(statsDropdown)))
 
@@ -2622,17 +2681,28 @@ def reCalc():
                     reCalcWindow['unicornthreshold'].update('⋆' + formatRarity(1/tryFloat(unicornThreshold)) + '⋆')
                 else:
                     reCalcWindow['unicornthreshold'].update('')
-                stats = list(cur.execute("SELECT stat1disp,stat2disp,stat3disp,stat4disp,stat5disp,stat6disp,stat7disp,stat8disp FROM component WHERE type = ?",[values['componentselect']]).fetchall()[0])
-                statsDropdown = list(cur.execute("SELECT stat1,stat2,stat3,stat4,stat5,stat6,stat7,stat8 FROM component WHERE type = ?",[values['componentselect']]).fetchall()[0])
+
+                stats = [x['statdisp'] for x in tables['componentstats'] if x['comptype'] == values['componentselect']][0]
+                while len(stats) < 8:
+                    stats = stats + ['']
+                statsDropdown = [x['stat'] for x in tables['componentstats'] if x['comptype'] == values['componentselect']][0]
+                while len(statsDropdown) < 8:
+                    statsDropdown = statsDropdown + ['']
+                tails = [tryInt(y) for y in [x['tail'] for x in tables['componentstats'] if x['comptype'] == values['componentselect']][0]]
+                while len(tails) < 8:
+                    tails = tails + [0]
+                    
                 if 'A/HP:' not in stats:
-                    stats.insert(0,'A/HP:')
-                    statsDropdown.insert(0,'Armor/Hitpoints')
+                        stats = ['A/HP:'] + stats
+                        statsDropdown = ['Armor/Hitpoints'] + statsDropdown
                 else:
-                    stats.append('')
+                    stats = stats + ['']
                 if 'Shield Hitpoints' in statsDropdown:
-                    statsDropdown.remove('Shield Hitpoints')
-                    statsDropdown.insert(3, 'Back Shield Hitpoints')
-                    statsDropdown.insert(3, 'Front Shield Hitpoints')
+                    statsDropdownTemp = statsDropdown
+                    statsDropdownTemp.remove('Shield Hitpoints')
+                    statsDropdownTemp.insert(3, 'Back Shield Hitpoints')
+                    statsDropdownTemp.insert(3, 'Front Shield Hitpoints')
+                    statsDropdown = statsDropdownTemp
                 statsDropdown = [x for x in statsDropdown if x != '']
                 reCalcWindow['matchingtarget'].update(value='Average Rarity', values=['Average Rarity','Best Stat','Worst Stat'] + statsDropdown, size=(20,3+len(statsDropdown)))
                 reCalcWindow['statsheader'].update(visible=True)
@@ -2777,6 +2847,5 @@ def reCalc():
 
     reCalcWindow.close()
     compdb.close()
-    tables.close()
 
 #reCalc() #uncomment to run from here.

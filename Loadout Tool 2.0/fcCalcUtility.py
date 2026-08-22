@@ -1,7 +1,9 @@
 import FreeSimpleGUI as sg
+import json
 import numpy as np
 import os
 import sqlite3
+import sys
 import win32clipboard
 
 from datetime import datetime, timedelta
@@ -34,12 +36,15 @@ sg.theme_add_new('Discord_Dark', theme_definition)
 sg.theme('Discord_Dark')
 
 global tables
-global cur
 global compdb
 global cur2
 
-tables = sqlite3.connect("file:"+os.path.abspath(os.path.join(os.path.dirname(__file__), 'tables.db'))+"?mode=ro", uri=True)
-cur = tables.cursor()
+try:
+    with open(os.getenv('APPDATA') + "\\Seraph's Loadout Tool\\data.json", 'r') as f:
+        tables = json.load(f)
+except:
+    print('An error occurred. Table data could not be located.')
+    sys.exit()
 
 compdb = sqlite3.connect("file:"+os.getenv("APPDATA")+"\\Seraph's Loadout Tool\\savedata.db?mode=rw", uri=True)
 cur2 = compdb.cursor()
@@ -380,7 +385,7 @@ def loadFCLoadout(window):
                 for i in range(0, 15):
                     loadFCWindow['text' + str(i)].update(programs[i])
                     try:
-                        memoryTotal += int(cur.execute("SELECT size FROM fcprogram WHERE name = ?",[programs[i]]).fetchall()[0][0])
+                        memoryTotal += int([x['datasize'] for x in tables['fcprograms'] if x['name'] == programs[i]][0])
                     except:
                         pass
             
@@ -466,11 +471,10 @@ def setMenu(saveLock, openLock, macroLock):
 
 def fcCalc(*dcs):
 
-    programs = listifyPrograms(cur.execute("SELECT * FROM fcprogram").fetchall())
-    slashCommand = programs[0]
-    programNames = programs[1]
-    memory = programs[2]
-    cooldown = programs[4]
+    slashCommand = [x['command'] for x in tables['fcprograms']]
+    programNames = [x['name'] for x in tables['fcprograms']]
+    memory = [x['datasize'] for x in tables['fcprograms']]
+    cooldown = [x['modifiers'][0] for x in tables['fcprograms']]
 
     orderColumn = [[sg.Push(),sg.Text("Macro",font=summaryFont,p=0),sg.Push()]]
     listColumn = [[sg.Push(),sg.Push(),sg.Text("Select Programs",font=summaryFont,p=0),sg.Push(),sg.Push(),sg.Push()]]
@@ -681,9 +685,7 @@ def fcCalc(*dcs):
         try:
             if 'effects' in event:
                 target = values['list' + str(int(event.split('effects')[1]))]
-                descList = []
-                for i in range(1,5):
-                    descList.append(cur.execute("SELECT desc" + str(i) + " FROM fcprogram WHERE name = ?",[target]).fetchall()[0][0])
+                descList = [x['effectdisp'] for x in tables['fcprograms'] if x['name'] == target][0]
                 descList = ["• " + x for x in descList if x != '']
                 alert("Program Effects",["Program Effects"] + [target, ""] + descList + [""],['Okay'],0,[[headerFont,baseFont,baseFont,baseFont,baseFont,baseFont,baseFont,baseFont],['center','center','center','left','left','left','left','left']],[])
         except:
@@ -696,7 +698,7 @@ def fcCalc(*dcs):
                 macroText += macroList[i] + '\n'
             if macroText != '':
                 toClipboard(macroText)
-                alert("",["Macro copied to clipboard!"],[],3,[[('Calibri',24,'bold')],['center']],[250, 75])
+                alert("",["Macro copied to clipboard"],[],3)
                 remodalize(window)
 
         if event == "Keyboard Shortcuts":
@@ -706,7 +708,6 @@ def fcCalc(*dcs):
             break
 
     window.close()
-    tables.close()
     compdb.close()
 
 #fcCalc()
