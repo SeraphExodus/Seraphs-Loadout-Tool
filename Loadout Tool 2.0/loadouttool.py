@@ -65,9 +65,9 @@ try:
         menuBarScaling = ctypes.windll.shcore.GetScaleFactorForDevice(0)/100
 except:
     displaySetting = False
-    ctypes.windll.user32.SetProcessDpiAwarenessContext(ctypes.wintypes.HANDLE(-2))
-    displayScaleFactor = 1
-    menuBarScaling = ctypes.windll.shcore.GetScaleFactorForDevice(0)/100
+    ctypes.windll.user32.SetProcessDpiAwarenessContext(ctypes.wintypes.HANDLE(-1))
+    displayScaleFactor = ctypes.windll.shcore.GetScaleFactorForDevice(0)/100
+    menuBarScaling = 1
 
 scaleFactor = 1
 
@@ -223,6 +223,9 @@ try:
 except:
     webData = None
     webVersion = 0
+
+if not os.path.exists(dataDir):
+    os.makedirs(dataDir)
 
 try:
     with open(dataDir + '\\' + 'data.json', 'r') as f:
@@ -3706,7 +3709,6 @@ def main():
 
         try:
             displayScalingToggle = bool(cur2.execute("SELECT setting FROM display").fetchall()[0][0])
-            print(cur2.execute("SELECT setting FROM display").fetchall()[0][0],displayScalingToggle)
         except:
             displayScalingToggle = True #Determines whether to use Windows display scaling to upscale the application window. Can be switched off via menus for smaller monitors that use higher scaling.
 
@@ -4778,6 +4780,11 @@ def main():
 
             if event == 'Display Settings':
                 cur2.execute("CREATE TABLE IF NOT EXISTS display (setting)")
+                try:
+                    currentValue = cur2.execute("SELECT setting FROM display").fetchall()[0][0]
+                except:
+                    cur2.execute("INSERT OR REPLACE INTO display(setting) VALUES (?)",[True])
+                    currentValue = True
                 if displayScalingToggle:
                     buttonText = 'Turn Off Scaling'
                     statusText = 'On'
