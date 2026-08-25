@@ -4530,9 +4530,14 @@ def main():
         window['menu'].update(setMenus(menuEnables))
 
         try:
-            gist = get(versionURL,timeout=1).text.split('\n\n')
-            latestVersion = gist[0]
-            latestURL = gist[1]
+            gist = get(versionURL,timeout=1)
+            if gist.ok:
+                gist = gist.text.split('\n\n')
+                latestVersion = gist[0]
+                latestURL = gist[1]
+            else:
+                latestVersion = 0
+                latestURL = ''
         except:
             latestVersion = 0
             latestURL = ''
