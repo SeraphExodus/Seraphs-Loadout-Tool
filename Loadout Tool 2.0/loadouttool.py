@@ -241,6 +241,7 @@ if webData != localData and webData != None: #Case one - newer data found on gis
             json.dump(webData,f)
             tableData = webData
             print('new data found on gist, updated local data')
+            alert('Notice',['Datatables for the tool have been updated. Enjoy!'],[],3)
     else:
         print('local data is more recent than remote data; proceeding using local data.')
         tableData = localData
@@ -3690,8 +3691,6 @@ def setMenus(menuEnables):
 
 def main():
 
-    restartFlag = False
-
     init = datetime.now()
     print('init',init)
 
@@ -4399,8 +4398,10 @@ def main():
             [sg.Push(),sg.Text("", font=baseFont, p=fontPadding, key='slot8damagepvp', tooltip=dpShotTooltip),sg.Push()],
         ]
 
-        weaponSummaryTitleFrame = [
-            [sg.Push(),sg.Text('Weapons Summary',font=headerFont, p=fontPadding),sg.Push()]
+        weaponSummaryTitleFrame = [ #These dimensions took a lot of fine-tuning to get right. Careful messing with them.
+            [sg.Push(),sg.Frame('',[[]],border_width=0,s=(40,25),p=0),
+             sg.Frame('',[[sg.Push(),sg.Text("Weapons Summary", font=headerFont),sg.Push()]],border_width=0,p=0),
+             sg.Frame('',[[sg.VPush()],[sg.Push(),sg.Button('ä',border_width=1,s=(3,25),p=(9,0),font=('Wingdings', int(10*scaleFactor)),key='weaponanalysis',button_color=boxColor),sg.Push()]],border_width=0, s=(40,25), p=0),sg.Push()]
         ]
 
         weaponSummaryBox = [
@@ -4759,6 +4760,9 @@ def main():
                 updateOverloadMults(window)
                 refreshShield(window, values['shieldselection'], values['shieldadjustsetting'])
                 delta = True
+
+            if event == 'weaponanalysis':
+                print(event)
 
             if event == 'About':
                 #Need to update the alert function somehow to allow making clickable hyperlinks. Looks like it's gonna be a pain, though.
