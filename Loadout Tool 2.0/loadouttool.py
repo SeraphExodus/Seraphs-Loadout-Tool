@@ -27,7 +27,7 @@ from buildCompList import buildComponentList #Not dependent on dbs existing unti
 ###Upload new version
 ###Update gist with new download link
 
-currentVersion = "2.18.0"
+currentVersion = "2.18.1"
 
 versionURL = "https://gist.github.com/SeraphExodus/8ae0b6980e3780e8782847dbe76b0bf5/raw"
 
@@ -2705,7 +2705,7 @@ def createComponent(componentName, *editArgs):
                                     pass
                         except:
                             pass
-                partStats = list(lookup[1:9]) + ['Damage Modifier Against NPCs'] #adds this for ordnance ID to be removed later
+                partStats = lookup['stat'] + ['Damage Modifier Against NPCs'] #adds this for ordnance ID to be removed later
                 #go over textStats and attempt to align the strings to the actual stat names using jellyfish
                 for i in range(0,len(textStats)):
                     textStats[i] = textStats[i].replace('*','').replace('^','') #removes any extraneous carats and asterisks which can cause trouble down the line
@@ -2777,7 +2777,7 @@ def createComponent(componentName, *editArgs):
                                 textStats.append('Type')
                                 textValues.append(ordTypeGuess)
 
-                partStats = lookup[1:9] #removes the entry added for ordnance ID
+                partStats = lookup['stat'] #removes the entry added for ordnance ID
 
                 try:
                     armorValue = float(textValues[textStats.index('Armor')])
@@ -2807,7 +2807,7 @@ def createComponent(componentName, *editArgs):
                 for i in range(0,len(partStats)):
                     for j in [x for x in textStats if x != '']:
                         if j == partStats[i]:
-                            addComponentWindow['stat' + str(i+1)].update(value=textValues[textStats.index(j)])
+                            addComponentWindow['stat' + str(i)].update(value=textValues[textStats.index(j)])
             except:
                 alert("Error",['Unable to perform stat grab operation.','Try getting a better screencapture using the snipping tool.','(Win + Shift + S)'],[],3)
                 remodalize(addComponentWindow)
@@ -4763,6 +4763,7 @@ def main():
 
             if event == 'weaponanalysis':
                 print(event)
+                alert('Under Construction',['Weapon analysis pane coming soon to a Loadout Tool near you!'],[],3)
 
             if event == 'About':
                 #Need to update the alert function somehow to allow making clickable hyperlinks. Looks like it's gonna be a pain, though.
