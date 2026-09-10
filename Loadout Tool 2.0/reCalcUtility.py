@@ -1383,6 +1383,11 @@ def brandTable(reCalcWindow, newWindow, *brandWindow):
         rarityTable.append(brandRow)
         rawRarities.append(rawRow)
 
+    #So how do we want to go about this? In short, the brand with the best odds should be cyan, worse brands should be colored based on how many orders of magnitude worse their odds are. Color threshold should scale somewhat, probably based on the average rarity.
+    #Hard part is that the thresholds need to be more dynamic. e.g. 1-in-10 billion shouldn't be yellow against 1-in-1 million. "Impossible odds" need to come into play a bit more.
+    #On the other hand, the worst odds shouldn't *always* be red necessarily if they aren't that much worse than the best odds.
+    #Do we put a cap on the threshold maybe so that it's like 1 OoM at most?
+
     basis = []
 
     for i in range(0,len(stats)):
@@ -1394,28 +1399,33 @@ def brandTable(reCalcWindow, newWindow, *brandWindow):
     for i in range(0,len(rawRarities)):
         newRow = []
         try:
-            basisMax = max([x for x in rawRarities[i] if x != 0])
+            basisMean = logMean([x for x in rawRarities[i] if x >= math.pow(10,-11)])
+            basisMin = max([x for x in rawRarities[i] if x != 0])
         except:
-            basisMax = 0
+            basisMean = 0
+            basisMin = 0
         if rarityout in [0, '']:
             threshold = ''
         else:
-            threshold = abs(getLogDelta(basis[i],basisMax))
+            #threshold = min(abs(getLogDelta(basisMin,basisMean)),1)
+            threshold = 1
         for j in range(0,len(rawRarities[i])):
             if rawRarities[i][j] == 0 or rawRarities[i][j] < math.pow(10,-11) or threshold == '':
                 newRow.append('#ffffff')
             else:
-                delta = getLogDelta(basis[i],rawRarities[i][j])
-                if delta <= -threshold/2:
+                delta = getLogDelta(basisMin,rawRarities[i][j])
+                if delta <= threshold * 1/4:
                     newRow.append('#00ffff')
-                elif delta < 0:
-                    newRow.append('#00ee00')
-                elif delta < threshold/2:
+                elif delta < threshold * 3/4:
+                    newRow.append('#33ff33')
+                elif delta < threshold * 5/4:
                     newRow.append('#ffee00')
-                elif delta < threshold:
-                    newRow.append('#ff8800')
+                elif delta < threshold * 7/4:
+                    newRow.append('#ff9911')
                 else:
-                    newRow.append('#ff3939')
+                    newRow.append('#ff5050')
+
+                print(basisMin, rawRarities[i][j], delta, threshold, newRow[-1])
         rarityColors.append(newRow)
 
     descCol = [
